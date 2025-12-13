@@ -642,7 +642,8 @@ const App: React.FC = () => {
               </div>
            </div>
            
-           <div className="decoder-content p-4 md:p-6 flex-grow overflow-hidden flex flex-col pb-24 md:pb-6">
+           {/* CHANGED: overflow-y-auto to allow scrolling, remove pb-24 padding bottom which was excessive */}
+           <div className="decoder-content p-4 md:p-6 flex-grow overflow-y-auto flex flex-col pb-6">
               <WordBreakdownPanel 
                 selectedWord={selectedWord}
                 journalNote={journalNote}

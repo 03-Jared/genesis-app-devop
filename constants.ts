@@ -47,6 +47,11 @@ export const GENESIS_DICTIONARY: Record<string, { root: string; meaning: string;
     meaning: 'In the beginning',
     deep: 'The head of all things; the first movement of creation.'
   },
+  'ברא': {
+    root: 'ברא',
+    meaning: 'Created; shaped out of nothing',
+    deep: 'To create from nothingness; a divine act of bringing into existence.'
+  },
   'אלהים': {
     root: 'אלה',
     meaning: 'God',

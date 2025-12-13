@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { WordData, LetterDefinition } from '../types';
-import { DEFAULT_HEBREW_MAP, SOFIT_MAP } from '../constants';
+import { DEFAULT_HEBREW_MAP, SOFIT_MAP, GENESIS_DICTIONARY } from '../constants';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
 declare global {
@@ -32,6 +32,10 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
       return DEFAULT_HEBREW_MAP[root];
     }).filter(Boolean);
   };
+
+  // Definition Lookup
+  const dictionaryEntry = selectedWord ? GENESIS_DICTIONARY[selectedWord.cleanText] : null;
+  const definition = dictionaryEntry ? dictionaryEntry.meaning : (selectedWord ? "Definition not found." : "Waiting for selection...");
   
   const handleExport = async () => {
     if (exportRef.current && window.html2canvas) {
@@ -59,31 +63,44 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   const breakdown = selectedWord ? getLetterBreakdown(selectedWord.cleanText) : [];
 
   return (
-    <div className="h-full flex flex-col animate-fadeIn relative">
+    <div className="flex flex-col animate-fadeIn relative pb-8">
       
       {/* --- DECODER CARD (Top) --- */}
-      <div className="decoder-card mb-6 p-6 rounded-2xl glass-panel border border-[var(--color-accent-primary)]/30 relative overflow-hidden group">
+      <div className="decoder-card mb-6 p-6 rounded-2xl glass-panel border border-[var(--color-accent-primary)]/30 relative overflow-hidden group h-auto">
          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-accent-secondary)] blur-[80px] opacity-10 pointer-events-none"></div>
          
-         <div className="decoder-header flex justify-between items-start border-white/10 relative z-10">
-             <div>
-                <h2 id="decoder-word" className="hebrew-text text-5xl md:text-6xl text-white drop-shadow-[0_0_15px_var(--color-accent-secondary)]">
-                    {selectedWord ? selectedWord.cleanText : "WAITING..."}
-                </h2>
-                {!selectedWord && (
-                    <p className="text-[10px] text-[#a0a8c0] tech-font uppercase tracking-widest mt-2 animate-pulse">Awaiting Neural Link...</p>
-                )}
+         <div className="decoder-header flex flex-col gap-4 border-white/10 relative z-10">
+             <div className="flex justify-between items-start w-full">
+               <span id="decoder-ref" className="ref-badge text-[10px] uppercase tracking-widest bg-[var(--color-accent-primary)]/20 px-3 py-1 rounded text-[var(--color-accent-secondary)] border border-[var(--color-accent-primary)]/40">
+                  {selectedWord ? `${bookName} ${chapter}:${selectedWord.verseIndex + 1}` : "--"}
+               </span>
              </div>
-             <span id="decoder-ref" className="ref-badge text-[10px] uppercase tracking-widest bg-[var(--color-accent-primary)]/20 px-3 py-1 rounded text-[var(--color-accent-secondary)] border border-[var(--color-accent-primary)]/40">
-                {selectedWord ? `${bookName} ${chapter}:${selectedWord.verseIndex + 1}` : "--"}
-             </span>
+
+             <h2 id="decoder-word-container" className="flex flex-col md:flex-row md:flex-wrap md:items-baseline gap-2 md:gap-6 mt-2">
+                <span id="decoder-hebrew" className="hebrew-text text-5xl md:text-6xl text-[var(--color-accent-secondary)] drop-shadow-[0_0_15px_var(--color-accent-secondary)] leading-tight max-w-full break-words">
+                    {selectedWord ? selectedWord.text : "--"}
+                </span>
+                
+                {selectedWord && (
+                  <div className="flex items-baseline gap-3 flex-1 min-w-[200px]">
+                    <span className="divider text-[#a0a8c0] font-light hidden md:inline select-none">//</span>
+                    <span id="decoder-english" className="english-text text-white/90 text-lg md:text-xl font-normal leading-relaxed break-words">
+                       {definition}
+                    </span>
+                  </div>
+                )}
+             </h2>
+
+             {!selectedWord && (
+                <p className="text-[10px] text-[#a0a8c0] tech-font uppercase tracking-widest mt-2 animate-pulse">Awaiting Neural Link...</p>
+             )}
          </div>
       </div>
 
       {selectedWord && (
         <>
             {/* Breakdown Grid (Pictographic Sequence) */}
-            <div className="flex-grow overflow-y-auto pr-1 mb-4 scrollbar-thin">
+            <div className="mb-8">
                 <div className="text-[10px] tech-font text-[var(--color-accent-secondary)] uppercase tracking-widest mb-4 text-center">Pictographic Sequence</div>
                 
                 <div className="grid grid-cols-2 gap-3 pb-4">
@@ -134,7 +151,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
       )}
 
       {/* Action Buttons */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 mt-auto">
         {/* Export Button */}
         <button 
           onClick={handleExport}
