@@ -34,11 +34,45 @@ export const SOFIT_MAP: Record<string, string> = {
   'ץ': 'צ'
 };
 
-export const BIBLE_BOOKS = [
-  "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
-  "Joshua", "Judges", "Samuel", "Kings", "Isaiah", "Jeremiah", "Ezekiel",
-  "Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk",
-  "Zephaniah", "Haggai", "Zechariah", "Malachi",
-  "Psalms", "Proverbs", "Job", "Song of Songs", "Ruth", "Lamentations", "Ecclesiastes",
-  "Esther", "Daniel", "Ezra", "Nehemiah", "Chronicles"
-];
+export const BIBLE_DATA: Record<string, number> = {
+  "Genesis": 50,
+  "Exodus": 40,
+  "Leviticus": 27,
+  "Numbers": 36,
+  "Deuteronomy": 34,
+  "Joshua": 24,
+  "Judges": 21,
+  "Samuel": 55, // Combined
+  "Kings": 47, // Combined
+  "Isaiah": 66,
+  "Jeremiah": 52,
+  "Ezekiel": 48,
+  "Hosea": 14,
+  "Joel": 3,
+  "Amos": 9,
+  "Obadiah": 1,
+  "Jonah": 4,
+  "Micah": 7,
+  "Nahum": 3,
+  "Habakkuk": 3,
+  "Zephaniah": 3,
+  "Haggai": 2,
+  "Zechariah": 14,
+  "Malachi": 4,
+  "Psalms": 150,
+  "Proverbs": 31,
+  "Job": 42,
+  "Song of Songs": 8,
+  "Ruth": 4,
+  "Lamentations": 5,
+  "Ecclesiastes": 12,
+  "Esther": 10,
+  "Daniel": 12,
+  "Ezra": 10,
+  "Nehemiah": 13,
+  "Chronicles": 65, // Combined
+  "John": 21,
+  "Revelation": 22
+};
+
+export const BIBLE_BOOKS = Object.keys(BIBLE_DATA);

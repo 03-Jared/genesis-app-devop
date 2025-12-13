@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BIBLE_BOOKS } from './constants';
+import { BIBLE_BOOKS, BIBLE_DATA } from './constants';
 import { SefariaResponse, WordData } from './types';
 import WordBreakdownPanel from './components/WordBreakdownPanel';
 import { 
@@ -15,7 +15,8 @@ import {
   AdjustmentsHorizontalIcon,
   CpuChipIcon,
   ChevronDownIcon,
-  MinusIcon
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -113,6 +114,14 @@ const App: React.FC = () => {
 
   }, [settings]);
 
+  // Handle Book Change & Chapter Reset logic
+  useEffect(() => {
+    const maxChapters = BIBLE_DATA[selectedBook] || 50;
+    if (selectedChapter > maxChapters) {
+      setSelectedChapter(1);
+    }
+  }, [selectedBook]);
+
   const handleInitialize = () => {
     if (!username.trim()) {
         return;
@@ -134,12 +143,12 @@ const App: React.FC = () => {
     localStorage.setItem('genesis_font_size', String(newLevel));
   };
 
-  const fetchScripture = async () => {
+  const fetchScripture = async (overrideBook?: string, overrideChapter?: number) => {
     setLoading(true);
     setScriptureData(null); 
     
-    const currentBook = selectedBook;
-    const currentChapter = selectedChapter;
+    const currentBook = overrideBook || selectedBook;
+    const currentChapter = overrideChapter || selectedChapter;
     const currentVerse = selectedVerse ? parseInt(selectedVerse) : null;
 
     try {
@@ -160,6 +169,23 @@ const App: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChapterNav = (direction: 'next' | 'prev') => {
+    const max = BIBLE_DATA[selectedBook] || 50;
+    let next = selectedChapter;
+    
+    if (direction === 'next') {
+        if (next >= max) return; 
+        next++;
+    } else {
+        if (next <= 1) return;
+        next--;
+    }
+    
+    setSelectedChapter(next);
+    // Fetch immediately
+    fetchScripture(selectedBook, next);
   };
 
   const handleWordClick = (word: string, verseIndex: number) => {
@@ -246,14 +272,31 @@ const App: React.FC = () => {
   // --- LANDING PAGE ---
   if (showLanding) {
     return (
-      <div className="h-[100dvh] w-full cosmic-bg flex flex-col items-center justify-center relative overflow-hidden p-4">
+      <div className="landing-mode p-4">
         
-        {/* 3D Animated Cross */}
+        {/* TRUE 3D CROSS GEOMETRY (UNIFIED MESH) */}
         {settings.showHologram && (
           <div className="scene-3d mb-8 md:mb-12 relative z-10">
-            <div className="cross-object">
-              <div className="beam beam-v"></div>
-              <div className="beam beam-h"></div>
+            <div className="cross-group">
+                {/* Unified Front & Back Faces */}
+                <div className="face face-composite front"></div>
+                <div className="face face-composite back"></div>
+                
+                {/* Vertical Sides */}
+                <div className="side side-v-top"></div>
+                <div className="side side-v-bottom"></div>
+                <div className="side side-v-left-top"></div>
+                <div className="side side-v-left-bottom"></div>
+                <div className="side side-v-right-top"></div>
+                <div className="side side-v-right-bottom"></div>
+
+                {/* Horizontal Sides */}
+                <div className="side side-h-end-left"></div>
+                <div className="side side-h-end-right"></div>
+                <div className="side side-h-top-left"></div>
+                <div className="side side-h-bottom-left"></div>
+                <div className="side side-h-top-right"></div>
+                <div className="side side-h-bottom-right"></div>
             </div>
           </div>
         )}
@@ -275,14 +318,14 @@ const App: React.FC = () => {
               placeholder="ENTER YOUR CODENAME"
               value={username}
               onChange={(e) => setUsername(e.target.value.toUpperCase())}
-              className="glass-pill w-full px-6 py-4 text-center text-sm md:text-base tracking-[0.2em] font-bold bg-[#090a20]/80 border border-[var(--color-accent-primary)]/50 focus:border-[var(--color-accent-secondary)] text-[var(--color-accent-secondary)] placeholder:text-[#a0a8c0]/30 outline-none transition-all focus:shadow-[0_0_20px_var(--color-accent-primary)]"
+              className="glass-pill w-full px-6 py-4 text-center text-sm md:text-base tracking-[0.2em] font-bold bg-[#090a20]/20 border border-[var(--color-accent-primary)]/50 focus:border-[var(--color-accent-secondary)] text-[var(--color-accent-secondary)] placeholder:text-white/40 outline-none transition-all focus:shadow-[0_0_20px_var(--color-accent-primary)]"
             />
             
             <div className="relative">
                 <select
                     value={settings.theme}
                     onChange={(e) => setSettings(s => ({...s, theme: e.target.value as any}))}
-                    className="glass-pill w-full px-6 py-4 text-center text-xs md:text-sm tracking-[0.2em] appearance-none bg-[#090a20]/80 border border-[var(--color-accent-primary)]/50 cursor-pointer text-[#a0a8c0] hover:text-white transition-colors outline-none focus:border-[var(--color-accent-secondary)] uppercase"
+                    className="glass-pill w-full px-6 py-4 text-center text-xs md:text-sm tracking-[0.2em] appearance-none bg-[#090a20]/20 border border-[var(--color-accent-primary)]/50 cursor-pointer text-white/80 hover:text-white transition-colors outline-none focus:border-[var(--color-accent-secondary)] uppercase"
                 >
                     <option value="cyan">Protocol Cyan</option>
                     <option value="gold">Royal Gold</option>
@@ -309,6 +352,7 @@ const App: React.FC = () => {
   // --- MAIN APP ---
   const hebrewVerses = scriptureData ? (Array.isArray(scriptureData.he) ? scriptureData.he : [scriptureData.he]) : [];
   const englishVerses = scriptureData ? (Array.isArray(scriptureData.text) ? scriptureData.text : [scriptureData.text]) : [];
+  const maxChapters = BIBLE_DATA[selectedBook] || 50;
 
   // Font Size Classes for English
   const englishSizeClass = fontSizeLevel === 0 ? 'text-sm md:text-lg' : fontSizeLevel === 1 ? 'text-base md:text-xl' : 'text-lg md:text-2xl';
@@ -358,7 +402,7 @@ const App: React.FC = () => {
                       {BIBLE_BOOKS.map(b => <option key={b} value={b} className="bg-[#090a20] text-slate-200">{b}</option>)}
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[var(--color-accent-secondary)]">
-                      <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+                      <ChevronDownIcon className="w-4 h-4" />
                     </div>
                   </div>
                 </div>
@@ -366,13 +410,20 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Chapter</label>
-                    <input 
-                      type="number" 
-                      min="1" 
-                      value={selectedChapter}
-                      onChange={(e) => setSelectedChapter(parseInt(e.target.value) || 1)}
-                      className="w-full glass-pill px-5 py-3 text-sm text-center"
-                    />
+                    <div className="relative">
+                        <select 
+                          value={selectedChapter}
+                          onChange={(e) => setSelectedChapter(parseInt(e.target.value))}
+                          className="w-full appearance-none glass-pill px-5 py-3 text-sm cursor-pointer text-center"
+                        >
+                          {Array.from({length: maxChapters}, (_, i) => i + 1).map(num => (
+                             <option key={num} value={num} className="bg-[#090a20] text-slate-200">{num}</option>
+                          ))}
+                        </select>
+                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--color-accent-secondary)]">
+                           <ChevronDownIcon className="w-3 h-3" />
+                        </div>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Verse</label>
@@ -388,7 +439,7 @@ const App: React.FC = () => {
                 </div>
 
                 <button 
-                  onClick={fetchScripture}
+                  onClick={() => fetchScripture()}
                   disabled={loading}
                   className="w-full electric-gradient py-3 rounded-full text-xs uppercase tracking-widest font-bold flex items-center justify-center gap-2 mt-4"
                 >
@@ -443,6 +494,25 @@ const App: React.FC = () => {
               </h2>
 
               <div className="window-controls">
+                 {/* Navigation Arrows in Header */}
+                 <div className="flex items-center gap-1 border-r border-[var(--color-accent-primary)]/20 pr-2 mr-2">
+                    <button 
+                      onClick={() => handleChapterNav('prev')}
+                      disabled={selectedChapter <= 1}
+                      className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"
+                    >
+                      <ChevronLeftIcon className="w-4 h-4" />
+                    </button>
+                     <span className="text-[10px] font-mono text-[var(--color-accent-secondary)] w-6 text-center">{selectedChapter}</span>
+                    <button 
+                      onClick={() => handleChapterNav('next')}
+                      disabled={selectedChapter >= maxChapters}
+                      className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"
+                    >
+                      <ChevronRightIcon className="w-4 h-4" />
+                    </button>
+                 </div>
+
                 <button 
                   onClick={toggleReaderMode}
                   className={`transition-colors p-1 ${isReaderMode ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`}
@@ -467,7 +537,7 @@ const App: React.FC = () => {
               </div>
            </div>
 
-           <div className="reader-content flex-1 overflow-y-auto p-4 md:p-12 relative">
+           <div className="reader-content flex-1 overflow-y-auto p-4 md:p-12 relative scroll-smooth">
               <div className="fixed top-[60px] left-0 right-0 h-10 bg-gradient-to-b from-[#090a20] to-transparent pointer-events-none md:hidden"></div>
 
               {loading && (
@@ -489,7 +559,7 @@ const App: React.FC = () => {
                   <div className="text-center">
                     <h2 className="text-2xl md:text-6xl font-normal text-white mb-4 cinzel-font tracking-widest cyan-glow">
                       {activeRef.book} 
-                      <span className="text-[var(--color-accent-primary)] ml-3">
+                      <span className="text-white ml-3">
                         {activeRef.chapter}{activeRef.verse ? `:${activeRef.verse}` : ''}
                       </span>
                     </h2>
@@ -514,6 +584,20 @@ const App: React.FC = () => {
                       </div>
                     ))}
                   </div>
+
+                  {/* Navigation Footer */}
+                  <div className="pt-12 border-t border-[var(--color-accent-primary)]/20 flex justify-center pb-8">
+                     {selectedChapter < maxChapters && (
+                        <button 
+                            onClick={() => handleChapterNav('next')}
+                            className="group flex items-center gap-4 px-8 py-4 rounded-full bg-[var(--color-accent-primary)]/10 hover:bg-[var(--color-accent-primary)]/20 border border-[var(--color-accent-primary)]/30 hover:border-[var(--color-accent-secondary)] transition-all duration-300"
+                        >
+                            <span className="tech-font text-xs uppercase tracking-[0.3em] text-white">Next Chapter</span>
+                            <ChevronRightIcon className="w-5 h-5 text-[var(--color-accent-secondary)] group-hover:translate-x-1 transition-transform" />
+                        </button>
+                     )}
+                  </div>
+
                 </div>
               )}
            </div>

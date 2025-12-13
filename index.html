@@ -118,7 +118,7 @@
       ::-webkit-scrollbar-thumb { background: var(--color-accent-primary); border-radius: 99px; }
       ::-webkit-scrollbar-thumb:hover { background: var(--color-accent-secondary); }
 
-      /* --- 3D Cross Hologram Animation --- */
+      /* --- 3D Scene Container --- */
       .scene-3d {
         perspective: 1200px;
         width: 100%;
@@ -127,92 +127,6 @@
         display: flex;
         align-items: center;
         justify-content: center;
-      }
-
-      .cross-object {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        transform-style: preserve-3d;
-        animation: spin-cross 20s linear infinite;
-        transform: scale(0.8); /* Slight scale down default */
-      }
-      
-      @media (min-width: 768px) {
-        .cross-object { transform: scale(1); }
-      }
-
-      /* Energy Glass Material - UPDATED TO NEON CYAN */
-      .beam {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform-style: preserve-3d;
-        background: rgba(0, 10, 40, 0.7);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 2px solid var(--color-accent-secondary);
-        box-shadow: 0 0 calc(10px * var(--glow-factor)) var(--color-accent-secondary), 0 0 calc(30px * var(--glow-factor)) var(--color-accent-secondary);
-      }
-
-      /* Apply Pulse Animation to beams */
-      .cross-object .beam, .cross-object .beam::after {
-        animation: pulse-energy 4s ease-in-out infinite;
-      }
-
-      .beam-v {
-        width: 50px;
-        height: 300px;
-        transform: translate(-50%, -50%);
-      }
-      
-      .beam-v::after {
-        content: '';
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        background: inherit;
-        border: inherit;
-        box-shadow: inherit;
-        transform: rotateY(90deg);
-        left: 0; 
-        top: 0;
-      }
-
-      .beam-h {
-        width: 220px;
-        height: 50px;
-        transform: translate(-50%, -120%);
-      }
-
-      .beam-h::after {
-        content: '';
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        background: inherit;
-        border: inherit;
-        box-shadow: inherit;
-        transform: rotateX(90deg);
-        left: 0;
-        top: 0;
-      }
-
-      @keyframes spin-cross {
-        0% { transform: rotateY(0deg) rotateX(10deg); }
-        100% { transform: rotateY(360deg) rotateX(10deg); }
-      }
-      
-      /* Updated Pulse */
-      @keyframes pulse-energy {
-        0%, 100% { 
-          box-shadow: 0 0 calc(10px * var(--glow-factor)) var(--color-accent-secondary), 0 0 calc(30px * var(--glow-factor)) var(--color-accent-secondary);
-          border-color: var(--color-accent-secondary);
-        }
-        50% { 
-          box-shadow: 0 0 calc(20px * var(--glow-factor)) var(--color-accent-secondary), 0 0 calc(60px * var(--glow-factor)) var(--color-accent-secondary), 0 0 calc(90px * var(--glow-factor)) var(--color-accent-secondary); 
-          border-color: #ffffff;
-        }
       }
 
       /* Button Reactor Glow */
@@ -312,44 +226,261 @@
       }
 
       /* --- NUCLEAR FULLSCREEN OVERRIDE --- */
-      /* Force the panel to take up the EXACT size of the viewport */
       .panel.fullscreen {
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
-          width: 100vw !important;  /* Force Viewport Width */
-          height: 100vh !important; /* Force Viewport Height */
+          width: 100vw !important;
+          height: 100vh !important;
           z-index: 9999 !important;
           margin: 0 !important;
           border-radius: 0 !important;
           border: none !important;
-          /* Reset display to ensure internal flex works */
           display: flex !important; 
           flex-direction: column !important;
       }
       
-      /* Force the Header to pin to the absolute edges */ 
       .panel.fullscreen .panel-header { 
           width: 100% !important; 
           max-width: none !important; 
           box-sizing: border-box !important; 
-          padding: 20px 40px !important; /* Nice wide spacing like the reference image */ 
+          padding: 20px 40px !important;
           border-radius: 0 !important; 
-          /* Ensure it sticks to the top */ 
           position: sticky !important; 
           top: 0 !important; 
           left: 0 !important; 
           right: 0 !important; 
       }
 
-      /* Fix the squished content */ 
       .panel.fullscreen .reader-content, 
       .panel.fullscreen .decoder-content, 
       .panel.fullscreen .sidebar-content { 
           width: 100% !important; 
-          max-width: 1200px !important; /* Keep text readable in the middle */ 
-          margin: 0 auto !important; /* Center the text block */ 
-          padding: 50px !important; /* Add breathing room */ 
+          max-width: 1200px !important;
+          margin: 0 auto !important;
+          padding: 50px !important;
+      }
+
+      /* --- LANDING PAGE REDESIGN (Cinematic) --- */
+      .landing-mode {
+        position: relative;
+        width: 100%;
+        height: 100dvh;
+        overflow: hidden;
+        /* Intense Electric Blue/White left -> Black right */
+        background: radial-gradient(circle at 10% 50%, #ffffff 0%, #4c5cff 15%, #050510 50%, #000000 90%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Film Grain / Noise Overlay */
+      .landing-mode::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
+        opacity: 0.15;
+        mix-blend-mode: overlay;
+        pointer-events: none;
+        z-index: 50;
+      }
+
+      /* Landing Typography */
+      .landing-mode h1.cyan-glow {
+        text-shadow: none !important;
+        color: #ffffff !important;
+        letter-spacing: 0.25em;
+        font-weight: 800;
+        /* Subtle drop shadow against bright bg */
+        text-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+      }
+
+      .landing-mode p {
+        text-shadow: none !important;
+        color: #ffffff !important;
+        opacity: 0.9;
+        font-weight: 400;
+      }
+      
+      .landing-mode .glass-pill {
+          background: rgba(0, 0, 0, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: white;
+          backdrop-filter: blur(5px);
+      }
+
+      .landing-mode .reactor-button {
+        background: #ffffff;
+        color: #000000;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+        border: none;
+      }
+      .landing-mode .reactor-button:hover {
+        background: #ffffff;
+        box-shadow: 0 0 50px rgba(255, 255, 255, 0.9);
+        transform: scale(1.05);
+      }
+
+      /* --- UNIFIED MONOLITHIC 3D CROSS --- */
+      
+      .cross-group {
+          position: relative;
+          width: 220px; height: 300px;
+          transform-style: preserve-3d;
+          animation: spin-cross 16s linear infinite;
+      }
+      
+      .face {
+          position: absolute;
+          box-sizing: border-box;
+          backface-visibility: visible; /* Ensure we can see inside/back */
+          /* Default border for edges */
+          border: 1px solid rgba(255,255,255,0.15);
+      }
+
+      /* 
+         UNIFIED FRONT & BACK FACES 
+         Uses clip-path to draw the entire cross shape on a single div.
+         Polygon logic:
+         Box: 220w x 300h.
+         Vert Beam: 50w (X: 85-135).
+         Horz Beam: 50h (Y: 65-115). Center Y is 90 (relative to top 0).
+      */
+      .face-composite {
+          top: 0; left: 0;
+          width: 220px; height: 300px;
+          background: linear-gradient(135deg, #ffffff 0%, #dbeafe 100%);
+          /* Using drop-shadow to create a glowing border around the clipped shape */
+          filter: drop-shadow(0px 0px 2px rgba(255,255,255,0.4));
+          border: none !important; /* Clip-path cuts borders, so we use filter */
+          clip-path: polygon(
+             85px 0px,    /* Vert Top-Left */
+             135px 0px,   /* Vert Top-Right */
+             135px 65px,  /* Inner Corner Right-Top */
+             220px 65px,  /* Arm Right Top-Right */
+             220px 115px, /* Arm Right Bot-Right */
+             135px 115px, /* Inner Corner Right-Bot */
+             135px 300px, /* Vert Bot-Right */
+             85px 300px,  /* Vert Bot-Left */
+             85px 115px,  /* Inner Corner Left-Bot */
+             0px 115px,   /* Arm Left Bot-Left */
+             0px 65px,    /* Arm Left Top-Left */
+             85px 65px    /* Inner Corner Left-Top */
+          );
+      }
+
+      .face-composite.front { transform: translateZ(20px); }
+      .face-composite.back { 
+          transform: rotateY(180deg) translateZ(20px); 
+          background: #0f172a; /* Darker back */
+      }
+
+      /* SIDES (Stitched together to close the mesh) */
+      /* Base Style for Sides */
+      .side {
+          position: absolute;
+          background: linear-gradient(to right, #ffffff, #64748b);
+          border: 1px solid rgba(255,255,255,0.2);
+          /* Center of scene is center of bounding box 220x300 */
+          /* Top Left of scene is -110, -150 */
+      }
+      
+      /* Vertical Beam Sides (Top/Bottom caps and the long sides split by arm) */
+      .side-v-top {
+          width: 50px; height: 40px;
+          transform: translateX(85px) translateY(-20px) rotateX(90deg);
+      }
+      .side-v-bottom {
+          width: 50px; height: 40px;
+          transform: translateX(85px) translateY(280px) rotateX(-90deg);
+      }
+      
+      /* Vertical Left Side - Top Segment */
+      /* X=85. Y=0 to 65. H=65. */
+      .side-v-left-top {
+          width: 40px; height: 65px;
+          /* Rotate Y -90 puts it on the left plane */
+          transform: translateX(65px) translateY(0px) rotateY(-90deg);
+      }
+       /* Vertical Left Side - Bottom Segment */
+       /* Y=115 to 300. H=185. */
+      .side-v-left-bottom {
+          width: 40px; height: 185px;
+          transform: translateX(65px) translateY(115px) rotateY(-90deg);
+      }
+
+      /* Vertical Right Side - Top Segment */
+      /* X=135. Y=0 to 65. H=65. */
+      .side-v-right-top {
+          width: 40px; height: 65px;
+          transform: translateX(115px) translateY(0px) rotateY(90deg);
+      }
+      /* Vertical Right Side - Bottom Segment */
+      .side-v-right-bottom {
+          width: 40px; height: 185px;
+          transform: translateX(115px) translateY(115px) rotateY(90deg);
+      }
+
+      /* Horizontal Arm Sides */
+      /* Arm Left End Cap */
+      /* X=0. Y=65 to 115. H=50. */
+      .side-h-end-left {
+          width: 40px; height: 50px;
+          transform: translateX(-20px) translateY(65px) rotateY(-90deg);
+      }
+      /* Arm Right End Cap */
+      /* X=220. */
+      .side-h-end-right {
+          width: 40px; height: 50px;
+          transform: translateX(200px) translateY(65px) rotateY(90deg);
+      }
+      
+      /* Arm Top Edge - Left Part */
+      /* X=0 to 85. W=85. Y=65. */
+      .side-h-top-left {
+          width: 85px; height: 40px;
+          transform: translateX(0px) translateY(45px) rotateX(90deg);
+      }
+      /* Arm Bottom Edge - Left Part */
+      /* Y=115. */
+      .side-h-bottom-left {
+          width: 85px; height: 40px;
+          transform: translateX(0px) translateY(95px) rotateX(-90deg);
+      }
+      
+      /* Arm Top Edge - Right Part */
+      /* X=135 to 220. W=85. */
+      .side-h-top-right {
+          width: 85px; height: 40px;
+          transform: translateX(135px) translateY(45px) rotateX(90deg);
+      }
+      /* Arm Bottom Edge - Right Part */
+      .side-h-bottom-right {
+          width: 85px; height: 40px;
+          transform: translateX(135px) translateY(95px) rotateX(-90deg);
+      }
+
+      /* Shading Overrides */
+      .side-v-left-top, .side-v-left-bottom, .side-h-end-left { 
+          background: #ffffff; 
+          box-shadow: 0 0 30px rgba(59, 130, 246, 0.4); 
+      }
+      .side-v-right-top, .side-v-right-bottom, .side-h-end-right { 
+          background: #334155; 
+          border-color: #1e293b;
+      }
+      .side-v-bottom, .side-h-bottom-left, .side-h-bottom-right {
+          background: #1e293b;
+      }
+
+
+      @keyframes spin-cross {
+        0% { transform: rotateY(0deg) rotateX(10deg); }
+        100% { transform: rotateY(360deg) rotateX(10deg); }
       }
 
     </style>
