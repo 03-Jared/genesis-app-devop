@@ -586,16 +586,24 @@ const App: React.FC = () => {
                   <div id="readerContent" className={`space-y-6 md:space-y-8 ${isReaderMode ? 'mode-reader' : ''}`}>
                     {hebrewVerses.map((verse, idx) => (
                       <div key={idx} className="verse-block group relative p-4 md:p-8 border border-white/0 hover:border-[var(--color-accent-secondary)]/20 hover:bg-[var(--color-accent-primary)]/5 transition-all duration-500 rounded-2xl">
-                         <span className={`absolute left-2 md:left-4 top-4 md:top-6 ${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10`}>
-                           {activeRef.verse ? activeRef.verse : idx + 1}
-                         </span>
-                         
-                         <p className={`english-line text-[#a0a8c0] font-light font-sans leading-loose mb-6 pl-8 md:pl-10 group-hover:text-white transition-colors ${englishSizeClass} ${isReaderMode ? '' : 'italic'}`}>
-                           {englishVerses[idx]?.replace(/<[^>]*>?/gm, '')}
-                         </p>
+                         {/* Verse Layout: Flexbox to align number and text properly */}
+                         <div className="flex gap-3 md:gap-4 items-start">
+                             <div className="flex-shrink-0 pt-1.5 md:pt-2"> 
+                                {/* Padding-top to align the box with the text cap height given line-height */}
+                                <span className={`${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10 h-fit`}>
+                                  {activeRef.verse ? activeRef.verse : idx + 1}
+                                </span>
+                             </div>
+                             
+                             <div className="flex-grow">
+                                 <p className={`english-line text-[#a0a8c0] font-light font-sans leading-loose mb-6 group-hover:text-white transition-colors ${englishSizeClass} ${isReaderMode ? '' : 'italic'}`}>
+                                   {englishVerses[idx]?.replace(/<[^>]*>?/gm, '')}
+                                 </p>
 
-                         <div className="hebrew-line text-right border-t border-[var(--color-accent-primary)]/20 pt-4" dir="rtl">
-                           {renderHebrewVerse(verse, activeRef.verse ? activeRef.verse - 1 : idx)}
+                                 <div className="hebrew-line text-right border-t border-[var(--color-accent-primary)]/20 pt-4" dir="rtl">
+                                   {renderHebrewVerse(verse, activeRef.verse ? activeRef.verse - 1 : idx)}
+                                 </div>
+                             </div>
                          </div>
                       </div>
                     ))}
