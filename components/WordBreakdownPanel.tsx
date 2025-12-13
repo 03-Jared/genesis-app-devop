@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { WordData, LetterDefinition, SefariaLexiconEntry } from '../types';
+import { WordData, LetterDefinition, SefariaLexiconEntry, AiWordAnalysis } from '../types';
 import { DEFAULT_HEBREW_MAP, SOFIT_MAP, CORE_DICTIONARY } from '../constants';
 import { ArrowDownTrayIcon, GlobeAltIcon, BoltIcon, BookOpenIcon, GlobeAmericasIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 
@@ -10,7 +10,7 @@ declare global {
 }
 
 interface WordBreakdownPanelProps {
-  selectedWord: WordData | null;
+  selectedWord: (WordData & { aiDefinition?: AiWordAnalysis }) | null;
   journalNote: string;
   onNoteChange: (val: string) => void;
   bookName?: string;
@@ -31,7 +31,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   const exportRef = useRef<HTMLDivElement>(null);
   const [definition, setDefinition] = useState<string>('');
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [source, setSource] = useState<'memory' | 'cache' | 'api' | 'wiki' | null>(null);
+  const [source, setSource] = useState<'ai' | 'memory' | 'cache' | 'api' | 'wiki' | null>(null);
 
   // Utility: Strict Cleaner (Consonants Only - Aleph to Tav)
   const getCleanHebrew = (text: string): string => {
@@ -144,10 +144,18 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
       setDefinition('Analyzing Structure...');
       setSource(null);
 
+      // STEP 0: Check for Pre-fetched AI Definition
+      if (selectedWord.aiDefinition) {
+          setDefinition(selectedWord.aiDefinition.definition);
+          setSource('ai');
+          setIsScanning(false);
+          return;
+      }
+
       // STEP 1: Strict Clean
       const originalCleanWord = getCleanHebrew(selectedWord.text);
       
-      // --- TIER 0: RUNTIME MEMORY CACHE (Instant+) ---
+      // --- TIER 0.5: RUNTIME MEMORY CACHE (Instant+) ---
       if (MEMORY_CACHE.has(originalCleanWord)) {
           setDefinition(MEMORY_CACHE.get(originalCleanWord)!);
           setSource('memory');
@@ -302,6 +310,12 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                </span>
                
                <div className="flex items-center gap-3">
+                   {source === 'ai' && (
+                     <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-[var(--color-accent-secondary)] bg-[var(--color-accent-primary)]/20 px-2 py-0.5 rounded border border-[var(--color-accent-secondary)]/30">
+                        <CpuChipIcon className="w-3 h-3" />
+                        <span>Gemini Flash</span>
+                     </div>
+                   )}
                    {source === 'memory' && (
                      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-cyan-400 bg-cyan-900/20 px-2 py-0.5 rounded border border-cyan-500/30">
                         <CpuChipIcon className="w-3 h-3" />

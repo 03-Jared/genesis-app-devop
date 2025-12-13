@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { GoogleGenAI } from "@google/genai";
 import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS } from './constants';
-import { SefariaResponse, WordData } from './types';
+import { SefariaResponse, WordData, AiChapterData } from './types';
 import WordBreakdownPanel from './components/WordBreakdownPanel';
 import { 
   BookOpenIcon, 
@@ -29,6 +30,13 @@ const THEMES = {
   rose: { primary: '#be185d', secondary: '#ffe4e6', name: 'Mystic Rose' }
 };
 
+declare global {
+  interface Window {
+    html2canvas: any;
+    VERSE_DATA: any; // Global storage for AI data
+  }
+}
+
 const App: React.FC = () => {
   // Navigation State (Input fields)
   const [selectedBook, setSelectedBook] = useState('Genesis');
@@ -52,6 +60,12 @@ const App: React.FC = () => {
   const [scriptureData, setScriptureData] = useState<SefariaResponse | null>(null);
   const [history, setHistory] = useState<WordData[]>([]);
   
+  // AI State
+  const [aiData, setAiData] = useState<AiChapterData>({});
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [hoveredHebrewWord, setHoveredHebrewWord] = useState<string | null>(null);
+  const [hoveredVerseIndex, setHoveredVerseIndex] = useState<number | null>(null);
+
   // Interaction State
   const [selectedWord, setSelectedWord] = useState<WordData | null>(null);
   const [journalNote, setJournalNote] = useState('');
@@ -75,11 +89,8 @@ const App: React.FC = () => {
 
   // Initial Load
   useEffect(() => {
-    // Load Identity
     const storedUser = localStorage.getItem('genesis_username');
     const storedTheme = localStorage.getItem('genesis_theme');
-    
-    // Load Reader Prefs
     const storedReaderMode = localStorage.getItem('genesis_reader_mode');
     const storedFontSize = localStorage.getItem('genesis_font_size');
 
@@ -97,38 +108,27 @@ const App: React.FC = () => {
     fetchScripture();
   }, []);
 
-  // Theme & Visual Effects Application
+  // Theme Application
   useEffect(() => {
     const root = document.documentElement;
     const theme = THEMES[settings.theme];
-    
-    // Apply Colors
     root.style.setProperty('--color-accent-primary', theme.primary);
     root.style.setProperty('--color-accent-secondary', theme.secondary);
-    
-    // Apply Glass Opacity
     root.style.setProperty('--glass-bg', `rgba(10, 14, 41, ${settings.glassOpacity / 100})`);
-    
-    // Apply Glow Factor (0 to 2 scale)
     root.style.setProperty('--glow-factor', (settings.glowFactor / 100).toString());
-
   }, [settings]);
 
-  // Handle Book Change & Chapter Reset logic
+  // Handle Book Change
   useEffect(() => {
     const maxChapters = BIBLE_DATA[selectedBook] || 50;
     if (selectedChapter > maxChapters) {
       setSelectedChapter(1);
     }
-    // Also reset verse if out of bounds for new book/chapter
-    // We defer this check to render or next effect, but clearing it ensures we don't get stuck
     setSelectedVerse(''); 
   }, [selectedBook, selectedChapter]);
 
   const handleInitialize = () => {
-    if (!username.trim()) {
-        return;
-    }
+    if (!username.trim()) return;
     localStorage.setItem('genesis_username', username);
     localStorage.setItem('genesis_theme', settings.theme);
     setShowLanding(false);
@@ -146,9 +146,76 @@ const App: React.FC = () => {
     localStorage.setItem('genesis_font_size', String(newLevel));
   };
 
+  // --- GEMINI INTEGRATION ---
+
+  const getCleanHebrew = (text: string): string => {
+    return text.replace(/[^\u05D0-\u05EA]/g, "");
+  };
+
+  const analyzeVerseWithAI = async (hebrewText: string, englishText: string, verseIndex: number) => {
+    console.log(`🔵 Initializing Gemini AI for verse ${verseIndex + 1}...`);
+    
+    // Safety check for API Key
+    if (!process.env.API_KEY) {
+        console.warn("API Key missing");
+        return;
+    }
+
+    // Initialize GoogleGenAI
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    // 1. The Prompt (Robust & Structured)
+    const promptText = `
+    Analyze this Hebrew verse: '${hebrewText}'
+    Translation: '${englishText}'
+
+    Return a strictly valid JSON object.
+    The keys must be the Clean Hebrew Words (no vowels, consonants only).
+    For each key, provide:
+    1. "definition": A short, context-aware definition.
+    2. "english_match": The exact phrase in the English text that corresponds to this Hebrew word (for highlighting).
+    3. "root": The Hebrew root.
+    `;
+
+    try {
+        // 2. The API Call via SDK
+        // Using gemini-2.5-flash for improved stability and JSON handling
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: promptText,
+            config: {
+                responseMimeType: 'application/json' // Strict JSON Mode
+            }
+        });
+
+        const rawText = response.text;
+        if (!rawText) throw new Error("Empty response from AI");
+
+        // 3. Parsing (Direct JSON parse, strict mode ensures validity)
+        const verseData = JSON.parse(rawText);
+        console.log("🟢 AI Response Received:", verseData);
+        
+        // Save to global variable (Accumulating by verse index)
+        if (!window.VERSE_DATA) window.VERSE_DATA = {};
+        window.VERSE_DATA[verseIndex] = verseData;
+        console.log("🟣 Data Saved to Memory for verse:", verseIndex + 1);
+        
+        // Sync with React State for UI updates
+        setAiData(prev => ({ ...prev, [verseIndex]: verseData }));
+
+    } catch (error: any) {
+        console.error("❌ Critical AI Failure:", error);
+        if (error.message) {
+             console.error("API Error Message:", error.message);
+        }
+    }
+  };
+
   const fetchScripture = async (overrideBook?: string, overrideChapter?: number) => {
     setLoading(true);
     setScriptureData(null); 
+    setAiData({}); // Reset AI data on new chapter
+    window.VERSE_DATA = {}; // Reset global cache
     
     const currentBook = overrideBook || selectedBook;
     const currentChapter = overrideChapter || selectedChapter;
@@ -165,6 +232,22 @@ const App: React.FC = () => {
         book: currentBook,
         chapter: currentChapter,
         verse: currentVerse
+      });
+
+      // Trigger AI Analysis in Background
+      const he = Array.isArray(data.he) ? data.he : [data.he];
+      const en = Array.isArray(data.text) ? data.text : [data.text];
+      
+      // Analyze first 5 verses to save bandwidth/rate limits for this demo.
+      setIsAiAnalyzing(true);
+      const limit = Math.min(he.length, 5);
+      const promises = [];
+      for (let i = 0; i < limit; i++) {
+         promises.push(analyzeVerseWithAI(he[i], en[i], i));
+      }
+      
+      Promise.all(promises).finally(() => {
+        setIsAiAnalyzing(false);
       });
 
     } catch (error) {
@@ -187,19 +270,26 @@ const App: React.FC = () => {
     }
     
     setSelectedChapter(next);
-    // Fetch immediately
     fetchScripture(selectedBook, next);
   };
 
   const handleWordClick = (word: string, verseIndex: number) => {
-    const clean = word.replace(/[^\u0590-\u05FF]/g, '').replace(/[\u0591-\u05C7]/g, '');
-    const newWordData = { text: word, cleanText: clean, verseIndex };
+    const clean = getCleanHebrew(word);
+    
+    // Check if we have AI data for this word (looking in React state which mirrors VERSE_DATA)
+    const aiWordData = aiData[verseIndex]?.[clean];
+    
+    const newWordData: WordData & { aiDefinition?: any } = { 
+        text: word, 
+        cleanText: clean, 
+        verseIndex,
+        aiDefinition: aiWordData // Pass AI data if available
+    };
     
     setSelectedWord(newWordData);
     setActiveMobilePanel('decoder');
     
     setHistory(prev => {
-      // Avoid duplicates at the top
       if (prev.length > 0 && prev[0].cleanText === clean) return prev;
       return [newWordData, ...prev].slice(0, 10);
     });
@@ -223,11 +313,11 @@ const App: React.FC = () => {
     }
   };
 
+  // --- RENDERERS ---
+
   const renderHebrewVerse = (text: string, verseIndex: number) => {
     if (!text) return null;
     const words = text.split(' ');
-    
-    // Font size scaling for Hebrew
     const sizeClass = fontSizeLevel === 0 ? 'text-2xl md:text-3xl' : fontSizeLevel === 1 ? 'text-3xl md:text-4xl' : 'text-4xl md:text-5xl';
 
     return (
@@ -235,14 +325,28 @@ const App: React.FC = () => {
         {words.map((word, idx) => {
             const raw = word.replace(/<[^>]*>?/gm, '');
             if (!raw) return null;
+            const clean = getCleanHebrew(raw);
+            const isHovered = hoveredHebrewWord === clean && hoveredVerseIndex === verseIndex;
+            const hasAiData = aiData[verseIndex]?.[clean];
+
             return (
               <span 
                 key={idx}
+                onMouseEnter={() => {
+                    setHoveredHebrewWord(clean);
+                    setHoveredVerseIndex(verseIndex);
+                }}
+                onMouseLeave={() => {
+                    setHoveredHebrewWord(null);
+                    setHoveredVerseIndex(null);
+                }}
                 onClick={() => handleWordClick(raw, verseIndex)}
                 className={`
-                  cursor-pointer transition-all duration-300 rounded px-1.5 py-0.5
-                  hover:text-[var(--color-accent-secondary)] hover:scale-110 hover:drop-shadow-[0_0_15px_var(--color-accent-secondary)]
+                  cursor-pointer transition-all duration-300 rounded px-1.5 py-0.5 relative
+                  hover:scale-110 hover:drop-shadow-[0_0_15px_var(--color-accent-secondary)]
                   ${selectedWord?.text === raw ? 'text-[var(--color-accent-secondary)] font-bold drop-shadow-[0_0_20px_var(--color-accent-primary)]' : 'text-slate-100'}
+                  ${hasAiData ? 'decoration-[var(--color-accent-secondary)]/30 underline decoration-1 underline-offset-4' : ''}
+                  ${isHovered ? 'text-[var(--color-accent-secondary)]' : ''}
                 `}
               >
                 {raw}
@@ -253,13 +357,38 @@ const App: React.FC = () => {
     );
   };
 
+  const renderEnglishVerse = (text: string, verseIndex: number) => {
+      // Logic: If a Hebrew word in this verse is hovered, find its English match in AI data and highlight it.
+      if (hoveredVerseIndex === verseIndex && hoveredHebrewWord && aiData[verseIndex]) {
+          const aiEntry = aiData[verseIndex][hoveredHebrewWord];
+          if (aiEntry && aiEntry.english_match) {
+              const matchPhrase = aiEntry.english_match;
+              // Simple split/join for highlighting. 
+              const parts = text.split(new RegExp(`(${matchPhrase})`, 'gi'));
+              
+              return (
+                  <span>
+                      {parts.map((part, i) => (
+                          part.toLowerCase() === matchPhrase.toLowerCase() ? (
+                              <span key={i} className="bg-[var(--color-accent-secondary)]/20 text-[var(--color-accent-secondary)] px-1 rounded shadow-[0_0_15px_var(--color-accent-secondary)] font-bold transition-all duration-300">
+                                  {part}
+                              </span>
+                          ) : (
+                              <span key={i}>{part}</span>
+                          )
+                      ))}
+                  </span>
+              );
+          }
+      }
+      return <span>{text}</span>;
+  };
+
   const getPanelClass = (id: PanelId) => {
     const isMobileHidden = activeMobilePanel !== id ? 'hidden md:flex' : 'flex';
     const baseClasses = "panel flex flex-col glass-panel rounded-none md:rounded-3xl overflow-hidden transition-all duration-500 h-full md:h-auto border-x-0 md:border-x";
     
     if (maximizedPanel) {
-      // Use explicit 'panel fullscreen' classes to trigger the CSS overrides
-      // And we must use 'flex' to match the CSS display property expectation
       return maximizedPanel === id 
         ? 'panel fullscreen bg-[#090a20] flex flex-col'
         : 'hidden';
@@ -273,28 +402,29 @@ const App: React.FC = () => {
     return `${isMobileHidden} ${gridClass} ${baseClasses}`;
   };
 
+  const hebrewVerses = scriptureData ? (Array.isArray(scriptureData.he) ? scriptureData.he : [scriptureData.he]) : [];
+  const englishVerses = scriptureData ? (Array.isArray(scriptureData.text) ? scriptureData.text : [scriptureData.text]) : [];
+  const maxChapters = BIBLE_DATA[selectedBook] || 50;
+
+  const englishSizeClass = fontSizeLevel === 0 ? 'text-sm md:text-lg' : fontSizeLevel === 1 ? 'text-base md:text-xl' : 'text-lg md:text-2xl';
+  const verseNumSizeClass = fontSizeLevel === 0 ? 'text-[10px]' : fontSizeLevel === 1 ? 'text-xs' : 'text-sm';
+  const availableVerseCount = BIBLE_VERSE_COUNTS[selectedBook]?.[selectedChapter - 1] || 176;
+
   // --- LANDING PAGE ---
   if (showLanding) {
     return (
       <div className="landing-mode p-4">
-        
-        {/* TRUE 3D CROSS GEOMETRY (UNIFIED MESH) */}
         {settings.showHologram && (
           <div className="scene-3d mb-8 md:mb-12 relative z-10">
             <div className="cross-group">
-                {/* Unified Front & Back Faces */}
                 <div className="face face-composite front"></div>
                 <div className="face face-composite back"></div>
-                
-                {/* Vertical Sides */}
                 <div className="side side-v-top"></div>
                 <div className="side side-v-bottom"></div>
                 <div className="side side-v-left-top"></div>
                 <div className="side side-v-left-bottom"></div>
                 <div className="side side-v-right-top"></div>
                 <div className="side side-v-right-bottom"></div>
-
-                {/* Horizontal Sides */}
                 <div className="side side-h-end-left"></div>
                 <div className="side side-h-end-right"></div>
                 <div className="side side-h-top-left"></div>
@@ -305,7 +435,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Typography */}
         <div className="text-center z-10 space-y-4 mb-8">
           <h1 className="cinzel-font text-4xl md:text-7xl text-white font-bold tracking-widest cyan-glow">
             GENESIS
@@ -315,7 +444,6 @@ const App: React.FC = () => {
           </p>
         </div>
 
-        {/* Identity & Init Form */}
         <div className="w-full max-w-sm z-20 flex flex-col gap-5 animate-fadeIn">
             <input
               type="text"
@@ -354,19 +482,7 @@ const App: React.FC = () => {
     );
   }
 
-  // --- MAIN APP ---
-  const hebrewVerses = scriptureData ? (Array.isArray(scriptureData.he) ? scriptureData.he : [scriptureData.he]) : [];
-  const englishVerses = scriptureData ? (Array.isArray(scriptureData.text) ? scriptureData.text : [scriptureData.text]) : [];
-  const maxChapters = BIBLE_DATA[selectedBook] || 50;
-
-  // Font Size Classes
-  const englishSizeClass = fontSizeLevel === 0 ? 'text-sm md:text-lg' : fontSizeLevel === 1 ? 'text-base md:text-xl' : 'text-lg md:text-2xl';
-  // Verse Number Scaling
-  const verseNumSizeClass = fontSizeLevel === 0 ? 'text-[10px]' : fontSizeLevel === 1 ? 'text-xs' : 'text-sm';
-
-  // Determine available verses for the dropdown using the static dataset
-  const availableVerseCount = BIBLE_VERSE_COUNTS[selectedBook]?.[selectedChapter - 1] || 176;
-
+  // --- MAIN APP RENDER ---
   return (
     <div className="h-[100dvh] w-full cosmic-bg text-[#a0a8c0] overflow-hidden flex flex-col p-0 md:p-6 gap-0 md:gap-6 relative">
       
@@ -375,8 +491,16 @@ const App: React.FC = () => {
          <h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">
             GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}
          </h1>
-         <div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">
-            System Online
+         <div className="flex items-center gap-4">
+             {isAiAnalyzing && (
+                 <div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]">
+                    <span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>
+                    Gemini Uplink Active
+                 </div>
+             )}
+             <div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">
+                System Online
+             </div>
          </div>
       </header>
 
@@ -467,11 +591,9 @@ const App: React.FC = () => {
 
               <div className="pt-6 border-t border-[var(--color-accent-primary)]/20">
                 <div className="relative w-full">
-                    {/* Icon - Left */}
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-[var(--color-accent-secondary)]">
                        <ClockIcon className="w-4 h-4" />
                     </div>
-
                     <select
                         onChange={(e) => {
                             const idx = parseInt(e.target.value);
@@ -494,8 +616,6 @@ const App: React.FC = () => {
                            ))
                         )}
                     </select>
-                    
-                    {/* Chevron - Right */}
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[var(--color-accent-secondary)]">
                        <ChevronDownIcon className="w-4 h-4" />
                     </div>
@@ -512,7 +632,6 @@ const App: React.FC = () => {
               </h2>
 
               <div className="window-controls">
-                 {/* Navigation Arrows in Header */}
                  <div className="flex items-center gap-1 border-r border-[var(--color-accent-primary)]/20 pr-2 mr-2">
                     <button 
                       onClick={() => handleChapterNav('prev')}
@@ -538,7 +657,7 @@ const App: React.FC = () => {
                 >
                   <BookOpenIcon className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
-                <div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20"></div>
+                <div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div>
                 <button 
                   onClick={cycleFontSize}
                   className="font-serif font-bold text-xs md:text-sm text-[#a0a8c0] hover:text-white transition-colors flex items-end leading-none"
@@ -584,14 +703,11 @@ const App: React.FC = () => {
                     <div className="h-[1px] w-32 md:w-48 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent mx-auto opacity-70"></div>
                   </div>
 
-                  {/* Main Reader Content Area with Dynamic Classes */}
                   <div id="readerContent" className={`space-y-6 md:space-y-8 ${isReaderMode ? 'mode-reader' : ''}`}>
                     {hebrewVerses.map((verse, idx) => (
                       <div key={idx} className="verse-block group relative p-4 md:p-8 border border-white/0 hover:border-[var(--color-accent-secondary)]/20 hover:bg-[var(--color-accent-primary)]/5 transition-all duration-500 rounded-2xl">
-                         {/* Verse Layout: Flexbox to align number and text properly */}
                          <div className="flex gap-3 md:gap-4 items-start">
                              <div className="flex-shrink-0 pt-1.5 md:pt-2"> 
-                                {/* Padding-top to align the box with the text cap height given line-height */}
                                 <span className={`${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10 h-fit`}>
                                   {activeRef.verse ? activeRef.verse : idx + 1}
                                 </span>
@@ -599,7 +715,7 @@ const App: React.FC = () => {
                              
                              <div className="flex-grow">
                                  <p className={`english-line text-[#a0a8c0] font-light font-sans leading-loose mb-6 group-hover:text-white transition-colors ${englishSizeClass} ${isReaderMode ? '' : 'italic'}`}>
-                                   {englishVerses[idx]?.replace(/<[^>]*>?/gm, '')}
+                                   {renderEnglishVerse(englishVerses[idx]?.replace(/<[^>]*>?/gm, ''), idx)}
                                  </p>
 
                                  <div className="hebrew-line text-right border-t border-[var(--color-accent-primary)]/20 pt-4" dir="rtl">
@@ -611,7 +727,6 @@ const App: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* Navigation Footer */}
                   <div className="pt-12 border-t border-[var(--color-accent-primary)]/20 flex justify-center pb-8">
                      {selectedChapter < maxChapters && (
                         <button 
@@ -642,7 +757,6 @@ const App: React.FC = () => {
               </div>
            </div>
            
-           {/* CHANGED: overflow-y-auto to allow scrolling, remove pb-24 padding bottom which was excessive */}
            <div className="decoder-content p-4 md:p-6 flex-grow overflow-y-auto flex flex-col pb-6">
               <WordBreakdownPanel 
                 selectedWord={selectedWord}
@@ -684,17 +798,15 @@ const App: React.FC = () => {
         </button>
       </nav>
 
-      {/* --- CUSTOMIZATION CONSOLE (HUD DRAWER) --- */}
+      {/* --- CUSTOMIZATION CONSOLE --- */}
       <div 
         className={`fixed inset-0 z-[100] transition-all duration-500 ease-in-out ${isSettingsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
       >
-        {/* Backdrop */}
         <div 
           className="absolute inset-0 bg-black/60 backdrop-blur-md"
           onClick={() => setIsSettingsOpen(false)}
         ></div>
         
-        {/* Slide-Up Panel */}
         <div 
           className={`
             absolute bottom-0 left-0 right-0 h-[85dvh] md:h-[60dvh] bg-[#090a20]/90 
@@ -704,7 +816,6 @@ const App: React.FC = () => {
             ${isSettingsOpen ? 'translate-y-0' : 'translate-y-full'}
           `}
         >
-            {/* Header */}
             <div className="flex justify-between items-center p-6 border-b border-[var(--color-accent-primary)]/30">
                 <div className="flex items-center gap-3">
                    <Cog6ToothIcon className="w-6 h-6 text-[var(--color-accent-secondary)] animate-spin-slow" />
@@ -718,10 +829,8 @@ const App: React.FC = () => {
                 </button>
             </div>
 
-            {/* Content Grid (Masonry Style) */}
             <div className="flex-grow overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                {/* Module A: Prism Core (Theme) */}
                 <div className="glass-panel p-6 rounded-2xl relative overflow-hidden group">
                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-accent-secondary)]"></div>
                    <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6">
@@ -745,7 +854,6 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
-                {/* Module B: Visual Intensity */}
                 <div className="glass-panel p-6 rounded-2xl relative overflow-hidden">
                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-accent-secondary)]"></div>
                    <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6">
@@ -785,7 +893,6 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
-                {/* Module C: System Modules */}
                 <div className="glass-panel p-6 rounded-2xl relative overflow-hidden">
                    <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-accent-secondary)]"></div>
                    <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6">

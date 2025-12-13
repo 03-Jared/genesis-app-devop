@@ -36,3 +36,17 @@ export interface SefariaLexiconEntry {
     text?: string;
   }>;
 }
+
+export interface AiWordAnalysis {
+  definition: string;
+  english_match: string;
+  root: string;
+}
+
+export interface AiVerseData {
+  [cleanWord: string]: AiWordAnalysis;
+}
+
+export interface AiChapterData {
+  [verseIndex: number]: AiVerseData;
+}
