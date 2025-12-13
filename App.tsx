@@ -50,7 +50,6 @@ const App: React.FC = () => {
   // Data State
   const [scriptureData, setScriptureData] = useState<SefariaResponse | null>(null);
   const [history, setHistory] = useState<WordData[]>([]);
-  const [historyFilter, setHistoryFilter] = useState('');
   
   // Interaction State
   const [selectedWord, setSelectedWord] = useState<WordData | null>(null);
@@ -196,6 +195,7 @@ const App: React.FC = () => {
     setActiveMobilePanel('decoder');
     
     setHistory(prev => {
+      // Avoid duplicates at the top
       if (prev.length > 0 && prev[0].cleanText === clean) return prev;
       return [newWordData, ...prev].slice(0, 10);
     });
@@ -354,8 +354,10 @@ const App: React.FC = () => {
   const englishVerses = scriptureData ? (Array.isArray(scriptureData.text) ? scriptureData.text : [scriptureData.text]) : [];
   const maxChapters = BIBLE_DATA[selectedBook] || 50;
 
-  // Font Size Classes for English
+  // Font Size Classes
   const englishSizeClass = fontSizeLevel === 0 ? 'text-sm md:text-lg' : fontSizeLevel === 1 ? 'text-base md:text-xl' : 'text-lg md:text-2xl';
+  // Verse Number Scaling
+  const verseNumSizeClass = fontSizeLevel === 0 ? 'text-[10px]' : fontSizeLevel === 1 ? 'text-xs' : 'text-sm';
 
   return (
     <div className="h-[100dvh] w-full cosmic-bg text-[#a0a8c0] overflow-hidden flex flex-col p-0 md:p-6 gap-0 md:gap-6 relative">
@@ -449,38 +451,39 @@ const App: React.FC = () => {
               </div>
 
               <div className="pt-6 border-t border-[var(--color-accent-primary)]/20">
-                <label className="text-[10px] uppercase text-[#a0a8c0] tracking-wider font-semibold flex items-center gap-2 mb-4 ml-2">
-                  <ClockIcon className="w-3 h-3 text-[var(--color-accent-secondary)]" /> Recent Study
-                </label>
-                
-                <div className="relative mb-4">
-                  <input 
-                    type="text" 
-                    placeholder="Filter history..."
-                    value={historyFilter}
-                    onChange={(e) => setHistoryFilter(e.target.value)}
-                    className="w-full glass-pill px-4 py-2 text-xs placeholder:text-[#a0a8c0]/30 pr-8 bg-[#090a20]/60 border-[var(--color-accent-primary)]/20 focus:border-[var(--color-accent-secondary)]/40 text-right hebrew-text direction-rtl"
-                    dir="auto"
-                  />
-                  <MagnifyingGlassIcon className="w-3 h-3 text-[#a0a8c0] absolute left-3 top-1/2 -translate-y-1/2" />
-                </div>
-
-                <div className="space-y-2">
-                  {history
-                    .filter(h => h.cleanText.includes(historyFilter))
-                    .map((h, i) => (
-                    <div 
-                      key={i} 
-                      onClick={() => setSelectedWord(h)}
-                      className="flex justify-between items-center group cursor-pointer p-3 rounded-xl hover:bg-[var(--color-accent-primary)]/10 transition-colors border border-transparent hover:border-[var(--color-accent-primary)]/30"
-                    >
-                      <span className="hebrew-text text-lg text-[#a0a8c0] group-hover:text-[var(--color-accent-secondary)] transition-colors">{h.cleanText}</span>
-                      <span className="text-[10px] text-[var(--color-accent-secondary)] font-mono">Vs.{h.verseIndex + 1}</span>
+                <div className="relative w-full">
+                    {/* Icon - Left */}
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-[var(--color-accent-secondary)]">
+                       <ClockIcon className="w-4 h-4" />
                     </div>
-                  ))}
-                  {history.length > 0 && history.filter(h => h.cleanText.includes(historyFilter)).length === 0 && (
-                     <div className="text-center text-[10px] text-[#a0a8c0]/50 py-4 italic">No matches found</div>
-                  )}
+
+                    <select
+                        onChange={(e) => {
+                            const idx = parseInt(e.target.value);
+                            if (!isNaN(idx) && history[idx]) {
+                                setSelectedWord(history[idx]);
+                                setActiveMobilePanel('decoder');
+                            }
+                        }}
+                        value="" 
+                        className="w-full appearance-none glass-pill pl-11 pr-10 py-3 text-xs uppercase tracking-wider font-semibold cursor-pointer text-ellipsis text-[#a0a8c0] hover:text-white transition-colors focus:border-[var(--color-accent-secondary)]"
+                    >
+                        <option value="" disabled>Recent Study History</option>
+                        {history.length === 0 ? (
+                           <option disabled>No history yet</option>
+                        ) : (
+                           history.map((h, i) => (
+                             <option key={i} value={i} className="bg-[#090a20] text-slate-200 normal-case">
+                                {h.cleanText} (Vs. {h.verseIndex + 1})
+                             </option>
+                           ))
+                        )}
+                    </select>
+                    
+                    {/* Chevron - Right */}
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[var(--color-accent-secondary)]">
+                       <ChevronDownIcon className="w-4 h-4" />
+                    </div>
                 </div>
               </div>
            </div>
@@ -570,7 +573,7 @@ const App: React.FC = () => {
                   <div id="readerContent" className={`space-y-6 md:space-y-8 ${isReaderMode ? 'mode-reader' : ''}`}>
                     {hebrewVerses.map((verse, idx) => (
                       <div key={idx} className="verse-block group relative p-4 md:p-8 border border-white/0 hover:border-[var(--color-accent-secondary)]/20 hover:bg-[var(--color-accent-primary)]/5 transition-all duration-500 rounded-2xl">
-                         <span className="absolute left-2 md:left-4 top-4 md:top-6 text-[10px] text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10">
+                         <span className={`absolute left-2 md:left-4 top-4 md:top-6 ${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10`}>
                            {activeRef.verse ? activeRef.verse : idx + 1}
                          </span>
                          
