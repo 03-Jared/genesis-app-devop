@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BIBLE_BOOKS, BIBLE_DATA } from './constants';
+import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS } from './constants';
 import { SefariaResponse, WordData } from './types';
 import WordBreakdownPanel from './components/WordBreakdownPanel';
 import { 
@@ -119,7 +119,10 @@ const App: React.FC = () => {
     if (selectedChapter > maxChapters) {
       setSelectedChapter(1);
     }
-  }, [selectedBook]);
+    // Also reset verse if out of bounds for new book/chapter
+    // We defer this check to render or next effect, but clearing it ensures we don't get stuck
+    setSelectedVerse(''); 
+  }, [selectedBook, selectedChapter]);
 
   const handleInitialize = () => {
     if (!username.trim()) {
@@ -359,6 +362,9 @@ const App: React.FC = () => {
   // Verse Number Scaling
   const verseNumSizeClass = fontSizeLevel === 0 ? 'text-[10px]' : fontSizeLevel === 1 ? 'text-xs' : 'text-sm';
 
+  // Determine available verses for the dropdown using the static dataset
+  const availableVerseCount = BIBLE_VERSE_COUNTS[selectedBook]?.[selectedChapter - 1] || 176;
+
   return (
     <div className="h-[100dvh] w-full cosmic-bg text-[#a0a8c0] overflow-hidden flex flex-col p-0 md:p-6 gap-0 md:gap-6 relative">
       
@@ -429,14 +435,21 @@ const App: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Verse</label>
-                    <input 
-                      type="number" 
-                      min="1"
-                      placeholder="All"
-                      value={selectedVerse}
-                      onChange={(e) => setSelectedVerse(e.target.value)}
-                      className="w-full glass-pill px-5 py-3 text-sm text-center placeholder:text-[#a0a8c0]/30"
-                    />
+                    <div className="relative">
+                        <select 
+                          value={selectedVerse}
+                          onChange={(e) => setSelectedVerse(e.target.value)}
+                          className="w-full appearance-none glass-pill px-5 py-3 text-sm cursor-pointer text-center"
+                        >
+                          <option value="" className="bg-[#090a20] text-slate-200">All</option>
+                          {Array.from({length: availableVerseCount}, (_, i) => i + 1).map(num => (
+                             <option key={num} value={num} className="bg-[#090a20] text-slate-200">{num}</option>
+                          ))}
+                        </select>
+                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--color-accent-secondary)]">
+                           <ChevronDownIcon className="w-3 h-3" />
+                        </div>
+                    </div>
                   </div>
                 </div>
 
