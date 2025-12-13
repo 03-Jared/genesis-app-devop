@@ -34,6 +34,36 @@ export const SOFIT_MAP: Record<string, string> = {
   'ץ': 'צ'
 };
 
+export const GEMATRIA_VALUES: Record<string, number> = {
+  'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9, 'י': 10,
+  'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80, 'צ': 90, 'ק': 100,
+  'ר': 200, 'ש': 300, 'ת': 400,
+  'ך': 500, 'ם': 600, 'ן': 700, 'ף': 800, 'ץ': 900 // Using extended values for final forms
+};
+
+export const GENESIS_DICTIONARY: Record<string, { root: string; meaning: string; deep: string }> = {
+  'בראשית': {
+    root: 'ראש',
+    meaning: 'In the beginning',
+    deep: 'The head of all things; the first movement of creation.'
+  },
+  'אלהים': {
+    root: 'אלה',
+    meaning: 'God',
+    deep: 'The powers; the Judge; the Creator in strict justice.'
+  },
+  'השמים': {
+    root: 'שם',
+    meaning: 'The Heavens',
+    deep: 'Dual waters; the spiritual realm.'
+  },
+  'הארץ': {
+    root: 'ארץ',
+    meaning: 'The Earth',
+    deep: 'That which runs or crumbles; physical reality.'
+  }
+};
+
 export const BIBLE_DATA: Record<string, number> = {
   "Genesis": 50,
   "Exodus": 40,

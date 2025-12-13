@@ -155,7 +155,7 @@ const App: React.FC = () => {
 
     try {
       const versePart = currentVerse ? `.${currentVerse}` : '';
-      const response = await fetch(`https://www.sefaria.org/api/texts/${currentBook}.${currentChapter}${versePart}?context=0&en_v=The_Koren_Jerusalem_Bible`);
+      const response = await fetch(`https://www.sefaria.org/api/texts/${currentBook}.${currentChapter}${versePart}?context=0&version=King%20James%20Version`);
       const data = await response.json();
       
       setScriptureData(data);
