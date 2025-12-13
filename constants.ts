@@ -41,104 +41,34 @@ export const GEMATRIA_VALUES: Record<string, number> = {
   'ך': 500, 'ם': 600, 'ן': 700, 'ף': 800, 'ץ': 900 // Using extended values for final forms
 };
 
-// Tier 1: High-Frequency Cache (Global)
-// Expanded to Top 80 Frequency Words + Common Connectors
-// Keys are stored as clean text (no nikud) for O(1) lookup speed.
+// Tier 1: High-Frequency Cache (Global) - Clean Consonants Only
 export const CORE_DICTIONARY: Record<string, string> = {
-    // Top Frequency Connectors & Particles
-    "את": "Direct object marker (Untranslatable); Also 'With'.",
-    "לא": "No; not.",
-    "כל": "All; every; whole.",
-    "אשר": "Which; who; that (Relational pronoun).",
-    "אל": "To; towards; into.",
-    "כי": "That; because; for; when.",
-    "על": "On; upon; above; over.",
-    "מן": "From; out of.",
-    "ב": "In; at; with; by (Prefix).",
-    "ל": "To; for (Prefix).",
-    "כ": "Like; as (Prefix).",
-    "ה": "The (Definite Article Prefix); also 'He' (Question).",
-    "ו": "And; but (Conjunction Prefix).",
-    "זה": "This (Masculine).",
-    "מי": "Who?",
-    "מה": "What?",
-    "שם": "There; thither. Also: Name; reputation; character.",
-    "הנה": "Behold; look; here.",
-
-    // Divine & Names
-    "אלהים": "God; The Divine Ruler (Plural intensive).",
-    "יהוה": "The LORD (YHWH); The Self-Existent One.",
-    "אדני": "Lord; Master.",
-    "ישראל": "Israel; One who wrestles with God.",
-    "ירושלם": "Jerusalem; City of Peace.",
-    "דוד": "David; Beloved.",
-    "משה": "Moses; Drawn out.",
-    
-    // Creation, Nature & Places
-    "בראשית": "In the beginning.",
-    "ברא": "To create; shape out of nothing.",
-    "השמים": "The heavens; skies.",
-    "הארץ": "The earth; land.",
-    "ארץ": "Earth; land.",
-    "אור": "Light.",
-    "יום": "Day; period of time.",
-    "לילה": "Night.",
-    "מים": "Waters.",
-    "אש": "Fire.",
-    "רוח": "Spirit; wind; breath.",
-    "הר": "Mountain; hill.",
-    "עיר": "City; town.",
-    "בית": "House; household; temple.",
-    "דרך": "Way; road; journey.",
-    "שדה": "Field; open country.",
-
-    // Family & People
-    "אדם": "Man; mankind; Adam.",
-    "אב": "Father.",
-    "אם": "Mother.",
-    "בן": "Son; builder of the family name.",
-    "בת": "Daughter.",
-    "אח": "Brother.",
-    "איש": "Man; husband.",
-    "אשה": "Woman; wife.",
-    "מלך": "King; ruler.",
-    "כהן": "Priest.",
-    "עם": "People; nation.",
-    "גוי": "Nation; people; gentile.",
-    "נפש": "Soul; self; life-force.",
-    "עבד": "Servant; slave.",
-
-    // Body & Self
-    "פנים": "Face; presence.",
-    "יד": "Hand; strength.",
-    "לב": "Heart; mind; will.",
-    "עין": "Eye; spring.",
-    "ראש": "Head; top; beginning.",
-    "קול": "Voice; sound.",
-
-    // Common Verbs (Roots)
-    "אמר": "To say; speak.",
-    "היה": "To be; exist; become.",
-    "עשה": "To do; make.",
-    "נתן": "To give; set; place.",
-    "הלך": "To walk; go.",
-    "ראה": "To see; inspect.",
-    "שמע": "To hear; listen; obey.",
-    "בוא": "To come; enter.",
-    "דבר": "To speak.",
-    "ישב": "To sit; dwell; inhabit.",
-    "יצא": "To go out; exit.",
-    "שוב": "To return; turn back.",
-    "לקח": "To take; receive.",
-    "ידע": "To know (intimately).",
-    "מות": "To die.",
-    "אכל": "To eat.",
-    "נשא": "To lift; carry; forgive.",
-    "עבר": "To pass over; cross.",
-    "עלה": "To go up; ascend.",
-    "עמד": "To stand.",
-    "קרא": "To call; proclaim; read.",
-    "ירא": "To fear; revere."
+    // GENESIS 1:1
+    "בראשית": "In the beginning (Bereshit).",
+    "ברא": "Created; shaped out of nothing (Bara).",
+    "אלהים": "God; Divine Magistrate (Elohim).",
+    "את": "Direct Object Marker (Et).",
+    "השמים": "The Heavens (HaShamayim).",
+    "ואת": "And (Ve'Et).",
+    "הארץ": "The Earth (HaAretz).",
+    // GENESIS 1:2
+    "והארץ": "And the earth (VeHaAretz).",
+    "היתה": "Was; existed (Haytah).",
+    "תהו": "Formless; waste; confusion (Tohu).",
+    "ובהו": "And void; empty (VaVohu).",
+    "וחשך": "And darkness; obscurity (VeChoshech).",
+    "על": "Upon; over (Al).",
+    "פני": "Face of; surface of (Pnei).",
+    "תהום": "The Deep; Primeval Ocean (Tehom).",
+    "ורוח": "And the Spirit (VeRuach).",
+    "מרחפת": "Hovering; brooding (Merachefet).",
+    "המים": "The Waters (HaMayim).",
+    // COMMON ROOTS
+    "יום": "Day (Yom).",
+    "לילה": "Night (Lailah).",
+    "ויאמר": "And He said (VaYomer).",
+    "יהי": "Let there be (Yehi).",
+    "אור": "Light (Or)."
 };
 
 export const BIBLE_DATA: Record<string, number> = {

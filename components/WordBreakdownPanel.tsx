@@ -29,9 +29,10 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [source, setSource] = useState<'cache' | 'api' | 'wiki' | null>(null);
 
-  // 1. Utility: Remove Nikud (Vowel Points)
-  const removeNikud = (text: string): string => {
-    return text.replace(/[\u0591-\u05C7]/g, '');
+  // 1. Utility: Strict Cleaner (Consonants Only - Aleph to Tav)
+  // This removes Nikud (vowels), Dagesh (dots), Te'amim (cantillation), and any other marks.
+  const getCleanHebrew = (text: string): string => {
+    return text.replace(/[^\u05D0-\u05EA]/g, "");
   };
 
   const getLetterBreakdown = (cleanWord: string): LetterDefinition[] => {
@@ -48,7 +49,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   const generateMorphologicalVariants = (word: string): string[] => {
     const variants = new Set<string>();
     
-    // 1. Raw Word
+    // 1. Raw Word (cleaned)
     variants.add(word);
     
     // 2. Recursive Prefix Stripping
@@ -73,8 +74,60 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
         });
     });
 
-    // Return as array, prioritizing original then shortest (root)
+    // Return as array
     return Array.from(variants);
+  };
+
+  // Helper function to handle Sefaria API calls with recursive redirect support
+  const fetchSefariaDefinition = async (word: string, depth = 0): Promise<string | null> => {
+      if (depth > 2) return null; // Prevent infinite recursion
+
+      try {
+        const response = await fetch(`https://www.sefaria.org/api/words/${encodeURIComponent(word)}`);
+        if (!response.ok) return null;
+        
+        const data: SefariaLexiconEntry[] = await response.json();
+        if (!Array.isArray(data) || data.length === 0) return null;
+
+        let foundDef = '';
+        
+        // Priority 1: Content (BDB)
+        for (const entry of data) {
+            if (entry.content && entry.content.text) {
+                foundDef = entry.content.text;
+                break;
+            }
+        }
+        // Priority 2: Defs (Standard)
+        if (!foundDef) {
+            for (const entry of data) {
+                if (entry.defs && entry.defs.length > 0 && entry.defs[0].text) {
+                    foundDef = entry.defs[0].text;
+                    break;
+                }
+            }
+        }
+
+        if (foundDef) {
+            // CHECK FOR REDIRECTS ("Defective spelling of...", "Form of...")
+            // Matches phrases like "defective spelling of XXX" or "form of XXX"
+            const redirectMatch = foundDef.match(/(?:defective spelling|form|plural|construct)\s+(?:of|form of)\s+<a[^>]*>([\u05D0-\u05EA]+)<\/a>/i) || 
+                                  foundDef.match(/(?:defective spelling|form|plural|construct)\s+(?:of|form of)\s+([\u05D0-\u05EA]+)/i);
+            
+            if (redirectMatch && redirectMatch[1]) {
+                const targetWord = redirectMatch[1];
+                // Clean the target just in case, though regex captured consonants
+                const cleanTarget = getCleanHebrew(targetWord);
+                console.log(`Redirecting from ${word} to ${cleanTarget}`);
+                return fetchSefariaDefinition(cleanTarget, depth + 1);
+            }
+            
+            return foundDef;
+        }
+      } catch (e) {
+        console.error("Sefaria fetch error", e);
+      }
+      return null;
   };
 
   // 3. The Multi-Source Engine (Waterfall)
@@ -87,10 +140,11 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
 
     const fetchMultiSourceDefinition = async () => {
       setIsScanning(true);
-      setDefinition('Analyzing Morphology...');
+      setDefinition('Analyzing Structure...');
       setSource(null);
 
-      const originalCleanWord = removeNikud(selectedWord.text);
+      // STEP 1: Strict Clean
+      const originalCleanWord = getCleanHebrew(selectedWord.text);
       const variants = generateMorphologicalVariants(originalCleanWord);
       
       let foundDef = '';
@@ -109,40 +163,22 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
       try {
         setDefinition('Accessing Sefaria Archives...');
         
-        // Optimize: Don't check every variant against API, just the original and the most "root-like" (shortest)
-        // to avoid rate limits or slow UI. But for Sefaria, a few calls are okay.
-        // Let's try up to 3 variants: Original, Shortest, and maybe one in between.
         // Sorting variants by length might help prioritize roots.
         const sortedVariants = [...variants].sort((a, b) => a.length - b.length); 
-        // We actually want to try Original first (most specific), then Shortest (root).
+        // Try Original first, then variants
         const searchOrder = [originalCleanWord, ...sortedVariants.filter(v => v !== originalCleanWord)];
 
-        for (const apiWord of searchOrder.slice(0, 4)) { // Limit to 4 checks
+        // Dedup search order
+        const uniqueSearchOrder = Array.from(new Set(searchOrder));
+
+        for (const apiWord of uniqueSearchOrder.slice(0, 4)) { // Limit to 4 checks
              if (apiWord.length < 2) continue;
 
-             const response = await fetch(`https://www.sefaria.org/api/words/${encodeURIComponent(apiWord)}`);
-             if (response.ok) {
-                 const data: SefariaLexiconEntry[] = await response.json();
-                 if (Array.isArray(data) && data.length > 0) {
-                     // Check Content (BDB)
-                     for (const entry of data) {
-                        if (entry.content && entry.content.text) {
-                            foundDef = entry.content.text;
-                            break;
-                        }
-                     }
-                     // Check Defs (Standard)
-                     if (!foundDef) {
-                        for (const entry of data) {
-                            if (entry.defs && entry.defs.length > 0 && entry.defs[0].text) {
-                                foundDef = entry.defs[0].text;
-                                break;
-                            }
-                        }
-                     }
-                 }
+             const result = await fetchSefariaDefinition(apiWord);
+             if (result) {
+                 foundDef = result;
+                 break;
              }
-             if (foundDef) break;
         }
 
         if (foundDef) {
@@ -161,19 +197,15 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
       try {
         setDefinition('Consulting Global Wiki Grid...');
         
-        // Wiktionary usually indexes the base lemma.
-        // We should check the sorted variants (shortest first usually = lemma).
         const wikiVariants = [...variants].sort((a, b) => a.length - b.length);
         
         for (const wikiWord of wikiVariants.slice(0, 3)) {
              if (wikiWord.length < 2) continue;
 
-             // Note: Wikimedia REST API supports CORS generally.
              const response = await fetch(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(wikiWord)}`);
              
              if (response.ok) {
                  const data = await response.json();
-                 // Structure: { "he": [ { "definitions": [ { "definition": "..." } ] } ] }
                  if (data.he && Array.isArray(data.he) && data.he.length > 0) {
                      const firstEntry = data.he[0];
                      if (firstEntry.definitions && firstEntry.definitions.length > 0) {
@@ -219,7 +251,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
         exportRef.current.style.display = 'none';
 
         const link = document.createElement('a');
-        link.download = `rhema-card-${selectedWord ? selectedWord.cleanText : 'export'}.png`;
+        link.download = `rhema-card-${selectedWord ? getCleanHebrew(selectedWord.text) : 'export'}.png`;
         link.href = canvas.toDataURL();
         link.click();
       } catch (err) {
@@ -230,8 +262,9 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
     }
   };
 
-  // Derived State
-  const breakdown = selectedWord ? getLetterBreakdown(selectedWord.cleanText) : [];
+  // Derived State: Use cleaner logic strictly
+  const strictCleanText = selectedWord ? getCleanHebrew(selectedWord.text) : '';
+  const breakdown = selectedWord ? getLetterBreakdown(strictCleanText) : [];
 
   return (
     <div className="flex flex-col animate-fadeIn relative pb-8">
@@ -374,7 +407,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
             <div className="mt-4 text-[var(--color-accent-secondary)] cinzel-font text-2xl tracking-[0.4em] uppercase mb-16 border-b border-[var(--color-accent-primary)]/30 pb-4 w-full">Genesis Suite</div>
             
             <div className="hebrew-text text-[9rem] text-white drop-shadow-[0_0_40px_var(--color-accent-secondary)] mb-6">
-              {selectedWord ? selectedWord.cleanText : ''}
+              {selectedWord ? strictCleanText : ''}
             </div>
             
             <div className="text-[#a0a8c0] tech-font uppercase tracking-[0.2em] text-sm mb-16">
