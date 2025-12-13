@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { WordData, LetterDefinition, SefariaLexiconEntry } from '../types';
 import { DEFAULT_HEBREW_MAP, SOFIT_MAP, CORE_DICTIONARY } from '../constants';
-import { ArrowDownTrayIcon, GlobeAltIcon, BoltIcon, BookOpenIcon, GlobeAmericasIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, GlobeAltIcon, BoltIcon, BookOpenIcon, GlobeAmericasIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 
 declare global {
   interface Window {
@@ -17,6 +17,10 @@ interface WordBreakdownPanelProps {
   chapter?: number;
 }
 
+// 1. The Brain (Runtime Cache)
+// Stores definitions for the session to prevent re-fetching
+const MEMORY_CACHE = new Map<string, string>();
+
 const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({ 
   selectedWord, 
   journalNote, 
@@ -27,10 +31,9 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   const exportRef = useRef<HTMLDivElement>(null);
   const [definition, setDefinition] = useState<string>('');
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [source, setSource] = useState<'cache' | 'api' | 'wiki' | null>(null);
+  const [source, setSource] = useState<'memory' | 'cache' | 'api' | 'wiki' | null>(null);
 
-  // 1. Utility: Strict Cleaner (Consonants Only - Aleph to Tav)
-  // This removes Nikud (vowels), Dagesh (dots), Te'amim (cantillation), and any other marks.
+  // Utility: Strict Cleaner (Consonants Only - Aleph to Tav)
   const getCleanHebrew = (text: string): string => {
     return text.replace(/[^\u05D0-\u05EA]/g, "");
   };
@@ -42,7 +45,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
     }).filter(Boolean);
   };
 
-  // 2. Logic: Advanced Morphology Stripper
+  // Logic: Advanced Morphology Stripper
   const PREFIXES = ['ו', 'ה', 'ב', 'ל', 'מ', 'כ', 'ש'];
   const SUFFIXES = ['ים', 'ות', 'ה', 'ו'];
 
@@ -110,13 +113,11 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
 
         if (foundDef) {
             // CHECK FOR REDIRECTS ("Defective spelling of...", "Form of...")
-            // Matches phrases like "defective spelling of XXX" or "form of XXX"
             const redirectMatch = foundDef.match(/(?:defective spelling|form|plural|construct)\s+(?:of|form of)\s+<a[^>]*>([\u05D0-\u05EA]+)<\/a>/i) || 
                                   foundDef.match(/(?:defective spelling|form|plural|construct)\s+(?:of|form of)\s+([\u05D0-\u05EA]+)/i);
             
             if (redirectMatch && redirectMatch[1]) {
                 const targetWord = redirectMatch[1];
-                // Clean the target just in case, though regex captured consonants
                 const cleanTarget = getCleanHebrew(targetWord);
                 console.log(`Redirecting from ${word} to ${cleanTarget}`);
                 return fetchSefariaDefinition(cleanTarget, depth + 1);
@@ -145,17 +146,29 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
 
       // STEP 1: Strict Clean
       const originalCleanWord = getCleanHebrew(selectedWord.text);
-      const variants = generateMorphologicalVariants(originalCleanWord);
       
+      // --- TIER 0: RUNTIME MEMORY CACHE (Instant+) ---
+      if (MEMORY_CACHE.has(originalCleanWord)) {
+          setDefinition(MEMORY_CACHE.get(originalCleanWord)!);
+          setSource('memory');
+          setIsScanning(false);
+          return;
+      }
+
+      const variants = generateMorphologicalVariants(originalCleanWord);
       let foundDef = '';
 
       // --- TIER 1: HEAVY LOCAL CACHE (Instant) ---
       for (const v of variants) {
           if (CORE_DICTIONARY[v]) {
-              setDefinition(CORE_DICTIONARY[v]);
+              foundDef = CORE_DICTIONARY[v];
+              setDefinition(foundDef);
               setSource('cache');
               setIsScanning(false);
-              return; // Exit completely
+              
+              // Save to Memory
+              MEMORY_CACHE.set(originalCleanWord, foundDef);
+              return; 
           }
       }
 
@@ -186,6 +199,9 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
             setDefinition(foundDef);
             setSource('api');
             setIsScanning(false);
+            
+            // Save to Memory
+            MEMORY_CACHE.set(originalCleanWord, foundDef);
             return;
         }
 
@@ -221,9 +237,15 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
             foundDef = foundDef.replace(/<[^>]*>?/gm, ''); // Clean HTML
             setDefinition(foundDef);
             setSource('wiki');
+            
+            // Save to Memory
+            MEMORY_CACHE.set(originalCleanWord, foundDef);
         } else {
             setDefinition('Root structure unclear. Analyze context.');
             setSource(null);
+            
+            // Optional: Cache failures to prevent retry? 
+            // MEMORY_CACHE.set(originalCleanWord, 'No definition found.');
         }
 
       } catch (err) {
@@ -280,6 +302,12 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                </span>
                
                <div className="flex items-center gap-3">
+                   {source === 'memory' && (
+                     <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-cyan-400 bg-cyan-900/20 px-2 py-0.5 rounded border border-cyan-500/30">
+                        <CpuChipIcon className="w-3 h-3" />
+                        <span>RAM</span>
+                     </div>
+                   )}
                    {source === 'cache' && (
                      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-emerald-400 bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-500/30">
                         <BoltIcon className="w-3 h-3" />
