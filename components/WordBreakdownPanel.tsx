@@ -1,7 +1,7 @@
-import React, { useRef } from 'react';
-import { WordData, LetterDefinition } from '../types';
-import { DEFAULT_HEBREW_MAP, SOFIT_MAP, GENESIS_DICTIONARY } from '../constants';
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import React, { useRef, useState, useEffect } from 'react';
+import { WordData, LetterDefinition, SefariaLexiconEntry } from '../types';
+import { DEFAULT_HEBREW_MAP, SOFIT_MAP, CORE_DICTIONARY } from '../constants';
+import { ArrowDownTrayIcon, GlobeAltIcon, BoltIcon, BookOpenIcon, GlobeAmericasIcon } from '@heroicons/react/24/outline';
 
 declare global {
   interface Window {
@@ -25,6 +25,14 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   chapter
 }) => {
   const exportRef = useRef<HTMLDivElement>(null);
+  const [definition, setDefinition] = useState<string>('');
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [source, setSource] = useState<'cache' | 'api' | 'wiki' | null>(null);
+
+  // 1. Utility: Remove Nikud (Vowel Points)
+  const removeNikud = (text: string): string => {
+    return text.replace(/[\u0591-\u05C7]/g, '');
+  };
 
   const getLetterBreakdown = (cleanWord: string): LetterDefinition[] => {
     return cleanWord.split('').map(char => {
@@ -33,9 +41,172 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
     }).filter(Boolean);
   };
 
-  // Definition Lookup
-  const dictionaryEntry = selectedWord ? GENESIS_DICTIONARY[selectedWord.cleanText] : null;
-  const definition = dictionaryEntry ? dictionaryEntry.meaning : (selectedWord ? "Definition not found." : "Waiting for selection...");
+  // 2. Logic: Advanced Morphology Stripper
+  const PREFIXES = ['ו', 'ה', 'ב', 'ל', 'מ', 'כ', 'ש'];
+  const SUFFIXES = ['ים', 'ות', 'ה', 'ו'];
+
+  const generateMorphologicalVariants = (word: string): string[] => {
+    const variants = new Set<string>();
+    
+    // 1. Raw Word
+    variants.add(word);
+    
+    // 2. Recursive Prefix Stripping
+    let current = word;
+    for(let i=0; i<3; i++) { // Max 3 prefix layers
+        const prefix = PREFIXES.find(p => current.startsWith(p));
+        if (prefix && current.length > prefix.length + 1) { // Ensure root remains
+            current = current.slice(prefix.length);
+            variants.add(current);
+        } else {
+            break;
+        }
+    }
+
+    // 3. Suffix Stripping (Applied to all Base variants found so far)
+    const bases = Array.from(variants);
+    bases.forEach(base => {
+        SUFFIXES.forEach(suffix => {
+            if (base.endsWith(suffix) && base.length > suffix.length + 1) {
+                variants.add(base.slice(0, -suffix.length));
+            }
+        });
+    });
+
+    // Return as array, prioritizing original then shortest (root)
+    return Array.from(variants);
+  };
+
+  // 3. The Multi-Source Engine (Waterfall)
+  useEffect(() => {
+    if (!selectedWord) {
+      setDefinition('Waiting for selection...');
+      setSource(null);
+      return;
+    }
+
+    const fetchMultiSourceDefinition = async () => {
+      setIsScanning(true);
+      setDefinition('Analyzing Morphology...');
+      setSource(null);
+
+      const originalCleanWord = removeNikud(selectedWord.text);
+      const variants = generateMorphologicalVariants(originalCleanWord);
+      
+      let foundDef = '';
+
+      // --- TIER 1: HEAVY LOCAL CACHE (Instant) ---
+      for (const v of variants) {
+          if (CORE_DICTIONARY[v]) {
+              setDefinition(CORE_DICTIONARY[v]);
+              setSource('cache');
+              setIsScanning(false);
+              return; // Exit completely
+          }
+      }
+
+      // --- TIER 2: SEFARIA API (Scroll) ---
+      try {
+        setDefinition('Accessing Sefaria Archives...');
+        
+        // Optimize: Don't check every variant against API, just the original and the most "root-like" (shortest)
+        // to avoid rate limits or slow UI. But for Sefaria, a few calls are okay.
+        // Let's try up to 3 variants: Original, Shortest, and maybe one in between.
+        // Sorting variants by length might help prioritize roots.
+        const sortedVariants = [...variants].sort((a, b) => a.length - b.length); 
+        // We actually want to try Original first (most specific), then Shortest (root).
+        const searchOrder = [originalCleanWord, ...sortedVariants.filter(v => v !== originalCleanWord)];
+
+        for (const apiWord of searchOrder.slice(0, 4)) { // Limit to 4 checks
+             if (apiWord.length < 2) continue;
+
+             const response = await fetch(`https://www.sefaria.org/api/words/${encodeURIComponent(apiWord)}`);
+             if (response.ok) {
+                 const data: SefariaLexiconEntry[] = await response.json();
+                 if (Array.isArray(data) && data.length > 0) {
+                     // Check Content (BDB)
+                     for (const entry of data) {
+                        if (entry.content && entry.content.text) {
+                            foundDef = entry.content.text;
+                            break;
+                        }
+                     }
+                     // Check Defs (Standard)
+                     if (!foundDef) {
+                        for (const entry of data) {
+                            if (entry.defs && entry.defs.length > 0 && entry.defs[0].text) {
+                                foundDef = entry.defs[0].text;
+                                break;
+                            }
+                        }
+                     }
+                 }
+             }
+             if (foundDef) break;
+        }
+
+        if (foundDef) {
+            foundDef = foundDef.replace(/<[^>]*>?/gm, ''); // Clean HTML
+            setDefinition(foundDef);
+            setSource('api');
+            setIsScanning(false);
+            return;
+        }
+
+      } catch (err) {
+        console.warn("Sefaria lookup failed, trying backup...");
+      }
+
+      // --- TIER 3: WIKTIONARY API (Web) ---
+      try {
+        setDefinition('Consulting Global Wiki Grid...');
+        
+        // Wiktionary usually indexes the base lemma.
+        // We should check the sorted variants (shortest first usually = lemma).
+        const wikiVariants = [...variants].sort((a, b) => a.length - b.length);
+        
+        for (const wikiWord of wikiVariants.slice(0, 3)) {
+             if (wikiWord.length < 2) continue;
+
+             // Note: Wikimedia REST API supports CORS generally.
+             const response = await fetch(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(wikiWord)}`);
+             
+             if (response.ok) {
+                 const data = await response.json();
+                 // Structure: { "he": [ { "definitions": [ { "definition": "..." } ] } ] }
+                 if (data.he && Array.isArray(data.he) && data.he.length > 0) {
+                     const firstEntry = data.he[0];
+                     if (firstEntry.definitions && firstEntry.definitions.length > 0) {
+                         foundDef = firstEntry.definitions[0].definition;
+                         break;
+                     }
+                 }
+             }
+             if (foundDef) break;
+        }
+
+        if (foundDef) {
+            foundDef = foundDef.replace(/<[^>]*>?/gm, ''); // Clean HTML
+            setDefinition(foundDef);
+            setSource('wiki');
+        } else {
+            setDefinition('Root structure unclear. Analyze context.');
+            setSource(null);
+        }
+
+      } catch (err) {
+        console.error("Wiktionary lookup failed", err);
+        setDefinition('Connection interruption. Unable to retrieve definition.');
+        setSource(null);
+      } finally {
+        setIsScanning(false);
+      }
+
+    };
+
+    fetchMultiSourceDefinition();
+
+  }, [selectedWord]);
   
   const handleExport = async () => {
     if (exportRef.current && window.html2canvas) {
@@ -74,6 +245,33 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                <span id="decoder-ref" className="ref-badge text-[10px] uppercase tracking-widest bg-[var(--color-accent-primary)]/20 px-3 py-1 rounded text-[var(--color-accent-secondary)] border border-[var(--color-accent-primary)]/40">
                   {selectedWord ? `${bookName} ${chapter}:${selectedWord.verseIndex + 1}` : "--"}
                </span>
+               
+               <div className="flex items-center gap-3">
+                   {source === 'cache' && (
+                     <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-emerald-400 bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-500/30">
+                        <BoltIcon className="w-3 h-3" />
+                        <span>Instant</span>
+                     </div>
+                   )}
+                   {source === 'api' && (
+                     <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-[var(--color-accent-secondary)] bg-[var(--color-accent-primary)]/20 px-2 py-0.5 rounded border border-[var(--color-accent-secondary)]/30">
+                        <BookOpenIcon className="w-3 h-3" />
+                        <span>Archive</span>
+                     </div>
+                   )}
+                   {source === 'wiki' && (
+                     <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-500/30">
+                        <GlobeAmericasIcon className="w-3 h-3" />
+                        <span>Web Grid</span>
+                     </div>
+                   )}
+
+                   {isScanning && (
+                    <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-[var(--color-accent-secondary)] animate-pulse">
+                        <GlobeAltIcon className="w-3 h-3 animate-spin" /> Uplink
+                    </span>
+                   )}
+               </div>
              </div>
 
              <h2 id="decoder-word-container" className="flex flex-col md:flex-row md:flex-wrap md:items-baseline gap-2 md:gap-6 mt-2">
@@ -82,11 +280,13 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                 </span>
                 
                 {selectedWord && (
-                  <div className="flex items-baseline gap-3 flex-1 min-w-[200px]">
-                    <span className="divider text-[#a0a8c0] font-light hidden md:inline select-none">//</span>
-                    <span id="decoder-english" className="english-text text-white/90 text-lg md:text-xl font-normal leading-relaxed break-words">
-                       {definition}
-                    </span>
+                  <div className="flex flex-col items-start gap-2 flex-1 min-w-[200px]">
+                    <div className="flex items-baseline gap-3">
+                        <span className="divider text-[#a0a8c0] font-light hidden md:inline select-none">//</span>
+                        <span id="decoder-english" className={`english-text text-lg md:text-xl font-normal leading-relaxed break-words ${isScanning ? 'text-[var(--color-accent-secondary)] opacity-80' : 'text-white/90'}`}>
+                        {definition}
+                        </span>
+                    </div>
                   </div>
                 )}
              </h2>

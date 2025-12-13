@@ -1,3 +1,4 @@
+
 export interface LetterDefinition {
   char: string;
   name: string;
@@ -24,4 +25,14 @@ export interface WordData {
   text: string;
   cleanText: string;
   verseIndex: number;
+}
+
+export interface SefariaLexiconEntry {
+  headword?: string;
+  content?: {
+    text?: string;
+  };
+  defs?: Array<{
+    text?: string;
+  }>;
 }
