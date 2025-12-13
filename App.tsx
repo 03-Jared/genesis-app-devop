@@ -25,7 +25,8 @@ const THEMES = {
   cyan: { primary: '#3b00ff', secondary: '#00d2ff', name: 'Protocol Cyan' },
   gold: { primary: '#5b3a00', secondary: '#FFD700', name: 'Royal Gold' },
   green: { primary: '#064e3b', secondary: '#00ff00', name: 'Matrix Green' },
-  purple: { primary: '#4c1d95', secondary: '#d946ef', name: 'Royal Purple' }
+  purple: { primary: '#4c1d95', secondary: '#d946ef', name: 'Royal Purple' },
+  rose: { primary: '#be185d', secondary: '#ffe4e6', name: 'Mystic Rose' }
 };
 
 const App: React.FC = () => {
@@ -334,6 +335,7 @@ const App: React.FC = () => {
                     <option value="gold">Royal Gold</option>
                     <option value="green">Matrix Green</option>
                     <option value="purple">Royal Purple</option>
+                    <option value="rose">Mystic Rose</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[var(--color-accent-secondary)]">
                    <ChevronDownIcon className="w-4 h-4" />
