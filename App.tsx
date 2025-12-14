@@ -164,43 +164,62 @@ const App: React.FC = () => {
     // Initialize GoogleGenAI
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    // 1. The Prompt (Robust & Structured)
+    // 1. THE PROMPT: Scholar Mode (No External Search)
     const promptText = `
-    Analyze this Hebrew verse: '${hebrewText}'
-    Translation: '${englishText}'
+    Role: Expert Hebrew Linguist & Biblical Scholar.
+    Task: Analyze this Hebrew verse and map it to the English translation.
 
-    Return a strictly valid JSON object.
-    The keys must be the Clean Hebrew Words (no vowels, consonants only).
-    For each key, provide:
-    1. "definition": A short, context-aware definition.
-    2. "english_match": The exact phrase in the English text that corresponds to this Hebrew word (for highlighting).
-    3. "root": The Hebrew root.
+    Source Material Priority:
+    1. Brown-Driver-Briggs (BDB) Lexicon.
+    2. Strong's Concordance.
+
+    Verse: "${hebrewText}"
+    Translation: "${englishText}"
+
+    CRITICAL INSTRUCTION FOR COMPOUND WORDS:
+    - Hebrew is morphological. You MUST decompose words with prefixes/suffixes.
+    - Example: "וְהָאָרֶץ" (VeHaAretz) -> The Key MUST be "וְהָאָרֶץ" (The Full Word), but the definition must be for "Eretz" (Earth).
+    - You must output the EXACT Hebrew word from the text as the JSON key, or the app will fail to highlight it.
+    - Key Format: Use the Hebrew word exactly as it appears in the verse (you can strip niqqud/vowels if you wish, but keep all consonants including prefixes).
+
+    OUTPUT FORMAT:
+    Return a STRICT JSON object. No markdown, no "Result:", just the object.
+    
+    JSON Structure per word:
+    {
+      "EXACT_HEBREW_WORD_FROM_TEXT": {
+          "definition": "Precise definition from BDB/Strong's",
+          "morphology": "Breakdown (e.g., 'Conj: And + Art: The + Noun: Earth')",
+          "root": "The 3-letter root (e.g., ארץ)",
+          "english_match": "The exact phrase in the English text to highlight"
+      }
+    }
     `;
 
     try {
         // 2. The API Call via SDK
-        // Using gemini-2.5-flash for improved stability and JSON handling
+        // Using gemini-2.5-flash with strict JSON mode.
+        // REMOVED googleSearch tool to fix 400 Error.
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: promptText,
             config: {
-                responseMimeType: 'application/json' // Strict JSON Mode
+                responseMimeType: 'application/json' 
             }
         });
 
-        const rawText = response.text;
+        const rawText = response.text || "";
         if (!rawText) throw new Error("Empty response from AI");
-
-        // 3. Parsing (Direct JSON parse, strict mode ensures validity)
-        const verseData = JSON.parse(rawText);
-        console.log("🟢 AI Response Received:", verseData);
         
-        // Save to global variable (Accumulating by verse index)
+        // 3. Parsing
+        const verseData = JSON.parse(rawText);
+        console.log("🟩 SCHOLAR DATA:", verseData);
+        
+        // Save to global variable
         if (!window.VERSE_DATA) window.VERSE_DATA = {};
         window.VERSE_DATA[verseIndex] = verseData;
-        console.log("🟣 Data Saved to Memory for verse:", verseIndex + 1);
         
-        // Sync with React State for UI updates
+        // Sync with React State
         setAiData(prev => ({ ...prev, [verseIndex]: verseData }));
 
     } catch (error: any) {
@@ -277,7 +296,13 @@ const App: React.FC = () => {
     const clean = getCleanHebrew(word);
     
     // Check if we have AI data for this word (looking in React state which mirrors VERSE_DATA)
-    const aiWordData = aiData[verseIndex]?.[clean];
+    // We try to match primarily by exact Clean Hebrew, as per prompt instructions
+    let aiWordData = aiData[verseIndex]?.[clean];
+    
+    // Fallback: Check if AI returned it as the raw word including vowels (unlikely due to clean logic, but safe)
+    if (!aiWordData && aiData[verseIndex]?.[word]) {
+        aiWordData = aiData[verseIndex][word];
+    }
     
     const newWordData: WordData & { aiDefinition?: any } = { 
         text: word, 
@@ -319,40 +344,44 @@ const App: React.FC = () => {
     if (!text) return null;
     const words = text.split(' ');
     const sizeClass = fontSizeLevel === 0 ? 'text-2xl md:text-3xl' : fontSizeLevel === 1 ? 'text-3xl md:text-4xl' : 'text-4xl md:text-5xl';
-
+    
     return (
-      <div className={`flex flex-wrap flex-row-reverse gap-2 leading-loose hebrew-text py-2 ${sizeClass}`}>
-        {words.map((word, idx) => {
-            const raw = word.replace(/<[^>]*>?/gm, '');
-            if (!raw) return null;
-            const clean = getCleanHebrew(raw);
-            const isHovered = hoveredHebrewWord === clean && hoveredVerseIndex === verseIndex;
-            const hasAiData = aiData[verseIndex]?.[clean];
+      <div className="flex flex-col gap-2">
+        <div className={`flex flex-wrap flex-row-reverse gap-2 leading-loose hebrew-text py-2 ${sizeClass}`}>
+          {words.map((word, idx) => {
+              const raw = word.replace(/<[^>]*>?/gm, '');
+              if (!raw) return null;
+              const clean = getCleanHebrew(raw);
+              const isHovered = hoveredHebrewWord === clean && hoveredVerseIndex === verseIndex;
+              
+              // Check for AI data presence
+              const hasAiData = aiData[verseIndex]?.[clean] || aiData[verseIndex]?.[raw];
 
-            return (
-              <span 
-                key={idx}
-                onMouseEnter={() => {
-                    setHoveredHebrewWord(clean);
-                    setHoveredVerseIndex(verseIndex);
-                }}
-                onMouseLeave={() => {
-                    setHoveredHebrewWord(null);
-                    setHoveredVerseIndex(null);
-                }}
-                onClick={() => handleWordClick(raw, verseIndex)}
-                className={`
-                  cursor-pointer transition-all duration-300 rounded px-1.5 py-0.5 relative
-                  hover:scale-110 hover:drop-shadow-[0_0_15px_var(--color-accent-secondary)]
-                  ${selectedWord?.text === raw ? 'text-[var(--color-accent-secondary)] font-bold drop-shadow-[0_0_20px_var(--color-accent-primary)]' : 'text-slate-100'}
-                  ${hasAiData ? 'decoration-[var(--color-accent-secondary)]/30 underline decoration-1 underline-offset-4' : ''}
-                  ${isHovered ? 'text-[var(--color-accent-secondary)]' : ''}
-                `}
-              >
-                {raw}
-              </span>
-            );
-        })}
+              return (
+                <span 
+                  key={idx}
+                  onMouseEnter={() => {
+                      setHoveredHebrewWord(clean);
+                      setHoveredVerseIndex(verseIndex);
+                  }}
+                  onMouseLeave={() => {
+                      setHoveredHebrewWord(null);
+                      setHoveredVerseIndex(null);
+                  }}
+                  onClick={() => handleWordClick(raw, verseIndex)}
+                  className={`
+                    cursor-pointer transition-all duration-300 rounded px-1.5 py-0.5 relative
+                    hover:scale-110 hover:drop-shadow-[0_0_15px_var(--color-accent-secondary)]
+                    ${selectedWord?.text === raw ? 'text-[var(--color-accent-secondary)] font-bold drop-shadow-[0_0_20px_var(--color-accent-primary)]' : 'text-slate-100'}
+                    ${hasAiData ? 'decoration-[var(--color-accent-secondary)]/30 underline decoration-1 underline-offset-4' : ''}
+                    ${isHovered ? 'text-[var(--color-accent-secondary)]' : ''}
+                  `}
+                >
+                  {raw}
+                </span>
+              );
+          })}
+        </div>
       </div>
     );
   };
@@ -360,7 +389,9 @@ const App: React.FC = () => {
   const renderEnglishVerse = (text: string, verseIndex: number) => {
       // Logic: If a Hebrew word in this verse is hovered, find its English match in AI data and highlight it.
       if (hoveredVerseIndex === verseIndex && hoveredHebrewWord && aiData[verseIndex]) {
+          // Try to find the AI entry using clean hebrew
           const aiEntry = aiData[verseIndex][hoveredHebrewWord];
+          
           if (aiEntry && aiEntry.english_match) {
               const matchPhrase = aiEntry.english_match;
               // Simple split/join for highlighting. 
