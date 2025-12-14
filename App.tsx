@@ -152,54 +152,35 @@ const App: React.FC = () => {
     return text.replace(/[^\u05D0-\u05EA]/g, "");
   };
 
-  const analyzeVerseWithAI = async (hebrewText: string, englishText: string, verseIndex: number) => {
-    console.log(`🔵 Initializing Gemini AI for verse ${verseIndex + 1}...`);
-    
-    // Safety check for API Key
-    if (!process.env.API_KEY) {
-        console.warn("API Key missing");
-        return;
-    }
-
-    // Initialize GoogleGenAI
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-    // 1. THE PROMPT: Scholar Mode (No External Search)
+  // Helper for analyzing a single verse, called by analyzeChapterWithAI
+  const analyzeSingleVerse = async (ai: GoogleGenAI, hebrewText: string, englishText: string, verseIndex: number) => {
+    // 2. The Logic for each verse (Fixed for Hyphens & Suffixes)
     const promptText = `
-    Role: Expert Hebrew Linguist & Biblical Scholar.
-    Task: Analyze this Hebrew verse and map it to the English translation.
-
-    Source Material Priority:
-    1. Brown-Driver-Briggs (BDB) Lexicon.
-    2. Strong's Concordance.
-
+    Role: Hebrew Morphology Expert.
+    Task: Map every Hebrew word in this verse to its English meaning.
+    
     Verse: "${hebrewText}"
     Translation: "${englishText}"
 
-    CRITICAL INSTRUCTION FOR COMPOUND WORDS:
-    - Hebrew is morphological. You MUST decompose words with prefixes/suffixes.
-    - Example: "וְהָאָרֶץ" (VeHaAretz) -> The Key MUST be "וְהָאָרֶץ" (The Full Word), but the definition must be for "Eretz" (Earth).
-    - You must output the EXACT Hebrew word from the text as the JSON key, or the app will fail to highlight it.
-    - Key Format: Use the Hebrew word exactly as it appears in the verse (you can strip niqqud/vowels if you wish, but keep all consonants including prefixes).
-
-    OUTPUT FORMAT:
-    Return a STRICT JSON object. No markdown, no "Result:", just the object.
+    CRITICAL RULES FOR "UNRECOGNIZED" WORDS:
+    1. THE MAQAF (HYPHEN) RULE: 
+       - Words like "עַל־פְּנֵי" are TWO words joined by a hyphen.
+       - You MUST create a JSON key for the EXACT string "עַל־פְּנֵי" (or whatever the raw text uses).
+       - Definition: Define the compound phrase (e.g., "Upon the face of").
     
-    JSON Structure per word:
+    2. THE SUFFIX RULE:
+       - Words like "חֶפְצִי" (My Delight) have a suffix.
+       - Key: "חֶפְצִי" (Exact text).
+       - Root: "חפץ" (Delight).
+       - Definition: "My delight (Suffix 'i' = My)".
+
+    OUTPUT: Strict JSON object. Keys = EXACT Hebrew words from text.
     {
-      "EXACT_HEBREW_WORD_FROM_TEXT": {
-          "definition": "Precise definition from BDB/Strong's",
-          "morphology": "Breakdown (e.g., 'Conj: And + Art: The + Noun: Earth')",
-          "root": "The 3-letter root (e.g., ארץ)",
-          "english_match": "The exact phrase in the English text to highlight"
-      }
+      "WORD_KEY": { "definition": "...", "root": "...", "english_match": "..." }
     }
     `;
 
     try {
-        // 2. The API Call via SDK
-        // Using gemini-2.5-flash with strict JSON mode.
-        // REMOVED googleSearch tool to fix 400 Error.
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: promptText,
@@ -208,25 +189,66 @@ const App: React.FC = () => {
             }
         });
 
-        const rawText = response.text || "";
-        if (!rawText) throw new Error("Empty response from AI");
+        let rawText = response.text || "";
+        if (!rawText) return null;
         
-        // 3. Parsing
+        // Clean markdown just in case the model returns code blocks
+        rawText = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "");
+
         const verseData = JSON.parse(rawText);
-        console.log("🟩 SCHOLAR DATA:", verseData);
-        
-        // Save to global variable
-        if (!window.VERSE_DATA) window.VERSE_DATA = {};
-        window.VERSE_DATA[verseIndex] = verseData;
-        
-        // Sync with React State
-        setAiData(prev => ({ ...prev, [verseIndex]: verseData }));
+        return { index: verseIndex, data: verseData };
 
     } catch (error: any) {
-        console.error("❌ Critical AI Failure:", error);
-        if (error.message) {
-             console.error("API Error Message:", error.message);
+        console.warn(`Verse ${verseIndex + 1} analysis failed:`, error);
+        return null;
+    }
+  };
+
+  // 1. NEW: Analyze the WHOLE chapter (Verse by Verse in batches)
+  const analyzeChapterWithAI = async (hebrewVerses: string[], englishVerses: string[]) => {
+    if (!process.env.API_KEY) {
+        console.warn("API Key missing");
+        return;
+    }
+
+    setIsAiAnalyzing(true);
+    console.log(`🟦 AI STATUS: Batch processing ${hebrewVerses.length} verses...`);
+    
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    // Chunking to avoid rate limits
+    const BATCH_SIZE = 3; 
+    
+    try {
+        for (let i = 0; i < hebrewVerses.length; i += BATCH_SIZE) {
+            const batchPromises = [];
+            const end = Math.min(i + BATCH_SIZE, hebrewVerses.length);
+            
+            for (let j = i; j < end; j++) {
+                batchPromises.push(analyzeSingleVerse(ai, hebrewVerses[j], englishVerses[j], j));
+            }
+            
+            // Wait for this batch
+            const results = await Promise.all(batchPromises);
+            
+            // Process results immediately so they pop in
+            const newAiData: AiChapterData = {};
+            results.forEach(res => {
+                if (res) {
+                    newAiData[res.index] = res.data;
+                    // Global Sync
+                    if (!window.VERSE_DATA) window.VERSE_DATA = {};
+                    window.VERSE_DATA[res.index] = res.data;
+                }
+            });
+            
+            setAiData(prev => ({ ...prev, ...newAiData }));
         }
+        console.log("🟩 CHAPTER ANALYSIS COMPLETE");
+    } catch (error) {
+        console.error("Chapter analysis failed", error);
+    } finally {
+        setIsAiAnalyzing(false);
     }
   };
 
@@ -253,21 +275,12 @@ const App: React.FC = () => {
         verse: currentVerse
       });
 
-      // Trigger AI Analysis in Background
+      // Trigger AI Analysis for the Whole Chapter
       const he = Array.isArray(data.he) ? data.he : [data.he];
       const en = Array.isArray(data.text) ? data.text : [data.text];
       
-      // Analyze first 5 verses to save bandwidth/rate limits for this demo.
-      setIsAiAnalyzing(true);
-      const limit = Math.min(he.length, 5);
-      const promises = [];
-      for (let i = 0; i < limit; i++) {
-         promises.push(analyzeVerseWithAI(he[i], en[i], i));
-      }
-      
-      Promise.all(promises).finally(() => {
-        setIsAiAnalyzing(false);
-      });
+      // Start batch processing in background
+      analyzeChapterWithAI(he, en);
 
     } catch (error) {
       console.error("Failed to fetch scripture", error);
@@ -297,9 +310,10 @@ const App: React.FC = () => {
     
     // Check if we have AI data for this word (looking in React state which mirrors VERSE_DATA)
     // We try to match primarily by exact Clean Hebrew, as per prompt instructions
+    // Also check raw word for Maqaf/Hyphenated support
     let aiWordData = aiData[verseIndex]?.[clean];
     
-    // Fallback: Check if AI returned it as the raw word including vowels (unlikely due to clean logic, but safe)
+    // Fallback: Check if AI returned it as the raw word (e.g. compound with hyphen)
     if (!aiWordData && aiData[verseIndex]?.[word]) {
         aiWordData = aiData[verseIndex][word];
     }
@@ -354,7 +368,7 @@ const App: React.FC = () => {
               const clean = getCleanHebrew(raw);
               const isHovered = hoveredHebrewWord === clean && hoveredVerseIndex === verseIndex;
               
-              // Check for AI data presence
+              // Check for AI data presence (Clean OR Raw for hyphenated words)
               const hasAiData = aiData[verseIndex]?.[clean] || aiData[verseIndex]?.[raw];
 
               return (
@@ -389,8 +403,22 @@ const App: React.FC = () => {
   const renderEnglishVerse = (text: string, verseIndex: number) => {
       // Logic: If a Hebrew word in this verse is hovered, find its English match in AI data and highlight it.
       if (hoveredVerseIndex === verseIndex && hoveredHebrewWord && aiData[verseIndex]) {
-          // Try to find the AI entry using clean hebrew
-          const aiEntry = aiData[verseIndex][hoveredHebrewWord];
+          // Try to find the AI entry using clean hebrew or raw if mapped that way
+          // We need the raw word that triggered this hover. 
+          // Current state only tracks 'clean', but let's try to lookup clean first.
+          let aiEntry = aiData[verseIndex][hoveredHebrewWord];
+
+          // If not found by clean key, iterating to find if any key matches the clean version or if we can find it via context.
+          // Since we don't have the raw word in state here easily without changing state structure, 
+          // we rely on the fact that for non-hyphenated words clean key works.
+          // For hyphenated words, the hover state uses clean('עַל־פְּנֵי') -> 'עלפני'. 
+          // If AI returned 'עַל־פְּנֵי' as key, direct lookup fails. 
+          // Let's try to find a key in aiData that 'cleans' to our hovered word.
+          if (!aiEntry) {
+             const keys = Object.keys(aiData[verseIndex]);
+             const match = keys.find(k => getCleanHebrew(k) === hoveredHebrewWord);
+             if (match) aiEntry = aiData[verseIndex][match];
+          }
           
           if (aiEntry && aiEntry.english_match) {
               const matchPhrase = aiEntry.english_match;
