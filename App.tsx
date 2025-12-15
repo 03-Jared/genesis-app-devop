@@ -172,25 +172,26 @@ const App: React.FC = () => {
     
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-    // 3. THE PROMPT (Handles Hyphens & Suffixes)
+    // 3. THE PROMPT (Handles Hyphens & Suffixes & Exact Matches)
     const promptText = `
-    Role: Expert Hebrew Linguist.
-    Task: Map Hebrew words in this SINGLE verse to English.
+    Role: Hebrew Morphology Expert.
+    Task: Analyze this SINGLE verse.
     Verse: "${hebrewText}"
     Translation: "${englishText}"
     
-    CRITICAL RULES: 
-    1. Keys must be the EXACT Hebrew string from the text.
-    2. Handle Maqaf (hyphens) like "עַל־פְּנֵי" as ONE single key "עַל־פְּנֵי".
-    3. Decompose suffixes: "חֶפְצִי" -> Root "Hefetz", Suffix "My".
-    
-    OUTPUT: Strict JSON object.
-    { 
-      "EXACT_HEBREW_WORD": { 
-          "definition": "Precise definition", 
+    CRITICAL INSTRUCTION FOR KEYS:
+    1. The JSON keys MUST be the **EXACT Hebrew string** found in the verse.
+    2. Do NOT strip prefixes (like 'Ha-', 'Vav-').
+    3. Example: If text is "וְהָאָרֶץ", the Key must be "וְהָאָרֶץ", NOT "ארץ".
+    4. Handle Maqaf (hyphens): "עַל־פְּנֵי" is ONE key "עַל־פְּנֵי".
+
+    OUTPUT FORMAT:
+    {
+      "EXACT_HEBREW_STRING_FROM_TEXT": { 
+          "definition": "Meaning of the word (including prefix if applicable)", 
           "root": "3-letter root", 
-          "english_match": "Exact English phrase to highlight" 
-      } 
+          "english_match": "English substring" 
+      }
     }
     `;
 
