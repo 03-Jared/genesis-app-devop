@@ -1,3 +1,4 @@
+
 import { LetterMap } from './types';
 
 export const DEFAULT_HEBREW_MAP: LetterMap = {
@@ -39,36 +40,6 @@ export const GEMATRIA_VALUES: Record<string, number> = {
   'כ': 20, 'ל': 30, 'מ': 40, 'נ': 50, 'ס': 60, 'ע': 70, 'פ': 80, 'צ': 90, 'ק': 100,
   'ר': 200, 'ש': 300, 'ת': 400,
   'ך': 500, 'ם': 600, 'ן': 700, 'ף': 800, 'ץ': 900 // Using extended values for final forms
-};
-
-// Tier 1: High-Frequency Cache (Global) - Clean Consonants Only
-export const CORE_DICTIONARY: Record<string, string> = {
-    // GENESIS 1:1
-    "בראשית": "In the beginning (Bereshit).",
-    "ברא": "Created; shaped out of nothing (Bara).",
-    "אלהים": "God; Divine Magistrate (Elohim).",
-    "את": "Direct Object Marker (Et).",
-    "השמים": "The Heavens (HaShamayim).",
-    "ואת": "And (Ve'Et).",
-    "הארץ": "The Earth (HaAretz).",
-    // GENESIS 1:2
-    "והארץ": "And the earth (VeHaAretz).",
-    "היתה": "Was; existed (Haytah).",
-    "תהו": "Formless; waste; confusion (Tohu).",
-    "ובהו": "And void; empty (VaVohu).",
-    "וחשך": "And darkness; obscurity (VeChoshech).",
-    "על": "Upon; over (Al).",
-    "פני": "Face of; surface of (Pnei).",
-    "תהום": "The Deep; Primeval Ocean (Tehom).",
-    "ורוח": "And the Spirit (VeRuach).",
-    "מרחפת": "Hovering; brooding (Merachefet).",
-    "המים": "The Waters (HaMayim).",
-    // COMMON ROOTS
-    "יום": "Day (Yom).",
-    "לילה": "Night (Lailah).",
-    "ויאמר": "And He said (VaYomer).",
-    "יהי": "Let there be (Yehi).",
-    "אור": "Light (Or)."
 };
 
 export const BIBLE_DATA: Record<string, number> = {

@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { WordData, LetterDefinition, SefariaLexiconEntry, AiWordAnalysis } from '../types';
-import { DEFAULT_HEBREW_MAP, SOFIT_MAP, CORE_DICTIONARY } from '../constants';
-import { ArrowDownTrayIcon, GlobeAltIcon, BoltIcon, BookOpenIcon, GlobeAmericasIcon, CpuChipIcon } from '@heroicons/react/24/outline';
+import React, { useRef } from 'react';
+import { WordData, LetterDefinition, AiWordAnalysis } from '../types';
+import { DEFAULT_HEBREW_MAP, SOFIT_MAP } from '../constants';
+import { ArrowDownTrayIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 
 declare global {
   interface Window {
@@ -15,25 +15,20 @@ interface WordBreakdownPanelProps {
   onNoteChange: (val: string) => void;
   bookName?: string;
   chapter?: number;
+  verseScanStatus?: 'idle' | 'scanning' | 'complete' | 'error';
 }
-
-// 1. The Brain (Runtime Cache)
-// Stores definitions for the session to prevent re-fetching
-const MEMORY_CACHE = new Map<string, string>();
 
 const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({ 
   selectedWord, 
   journalNote, 
   onNoteChange,
   bookName,
-  chapter
+  chapter,
+  verseScanStatus = 'idle'
 }) => {
   const exportRef = useRef<HTMLDivElement>(null);
-  const [definition, setDefinition] = useState<string>('');
-  const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [source, setSource] = useState<'ai' | 'memory' | 'cache' | 'api' | 'wiki' | null>(null);
 
-  // Utility: Strict Cleaner (Consonants Only - Aleph to Tav)
+  // Utility: Strict Cleaner (Consonants Only - Aleph to Tav) for history/display only
   const getCleanHebrew = (text: string): string => {
     return text.replace(/[^\u05D0-\u05EA]/g, "");
   };
@@ -44,231 +39,6 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
       return DEFAULT_HEBREW_MAP[root];
     }).filter(Boolean);
   };
-
-  // Logic: Advanced Morphology Stripper
-  const PREFIXES = ['ו', 'ה', 'ב', 'ל', 'מ', 'כ', 'ש'];
-  const SUFFIXES = ['ים', 'ות', 'ה', 'ו'];
-
-  const generateMorphologicalVariants = (word: string): string[] => {
-    const variants = new Set<string>();
-    
-    // 1. Raw Word (cleaned)
-    variants.add(word);
-    
-    // 2. Recursive Prefix Stripping
-    let current = word;
-    for(let i=0; i<3; i++) { // Max 3 prefix layers
-        const prefix = PREFIXES.find(p => current.startsWith(p));
-        if (prefix && current.length > prefix.length + 1) { // Ensure root remains
-            current = current.slice(prefix.length);
-            variants.add(current);
-        } else {
-            break;
-        }
-    }
-
-    // 3. Suffix Stripping (Applied to all Base variants found so far)
-    const bases = Array.from(variants);
-    bases.forEach(base => {
-        SUFFIXES.forEach(suffix => {
-            if (base.endsWith(suffix) && base.length > suffix.length + 1) {
-                variants.add(base.slice(0, -suffix.length));
-            }
-        });
-    });
-
-    // Return as array
-    return Array.from(variants);
-  };
-
-  // Helper function to handle Sefaria API calls with recursive redirect support
-  const fetchSefariaDefinition = async (word: string, depth = 0): Promise<string | null> => {
-      if (depth > 2) return null; // Prevent infinite recursion
-
-      try {
-        const response = await fetch(`https://www.sefaria.org/api/words/${encodeURIComponent(word)}`);
-        if (!response.ok) return null;
-        
-        const data: SefariaLexiconEntry[] = await response.json();
-        if (!Array.isArray(data) || data.length === 0) return null;
-
-        let foundDef = '';
-        
-        // Priority 1: Content (BDB)
-        for (const entry of data) {
-            if (entry.content && entry.content.text) {
-                foundDef = entry.content.text;
-                break;
-            }
-        }
-        // Priority 2: Defs (Standard)
-        if (!foundDef) {
-            for (const entry of data) {
-                if (entry.defs && entry.defs.length > 0 && entry.defs[0].text) {
-                    foundDef = entry.defs[0].text;
-                    break;
-                }
-            }
-        }
-
-        if (foundDef) {
-            // CHECK FOR REDIRECTS ("Defective spelling of...", "Form of...")
-            const redirectMatch = foundDef.match(/(?:defective spelling|form|plural|construct)\s+(?:of|form of)\s+<a[^>]*>([\u05D0-\u05EA]+)<\/a>/i) || 
-                                  foundDef.match(/(?:defective spelling|form|plural|construct)\s+(?:of|form of)\s+([\u05D0-\u05EA]+)/i);
-            
-            if (redirectMatch && redirectMatch[1]) {
-                const targetWord = redirectMatch[1];
-                const cleanTarget = getCleanHebrew(targetWord);
-                console.log(`Redirecting from ${word} to ${cleanTarget}`);
-                return fetchSefariaDefinition(cleanTarget, depth + 1);
-            }
-            
-            return foundDef;
-        }
-      } catch (e) {
-        console.error("Sefaria fetch error", e);
-      }
-      return null;
-  };
-
-  // 3. The Multi-Source Engine (Waterfall)
-  useEffect(() => {
-    if (!selectedWord) {
-      setDefinition('Waiting for selection...');
-      setSource(null);
-      return;
-    }
-
-    const fetchMultiSourceDefinition = async () => {
-      setIsScanning(true);
-      setDefinition('Analyzing Structure...');
-      setSource(null);
-
-      // STEP 0: Check for Pre-fetched AI Definition
-      if (selectedWord.aiDefinition) {
-          setDefinition(selectedWord.aiDefinition.definition);
-          setSource('ai');
-          setIsScanning(false);
-          return;
-      }
-
-      // STEP 1: Strict Clean
-      const originalCleanWord = getCleanHebrew(selectedWord.text);
-      
-      // --- TIER 0.5: RUNTIME MEMORY CACHE (Instant+) ---
-      if (MEMORY_CACHE.has(originalCleanWord)) {
-          setDefinition(MEMORY_CACHE.get(originalCleanWord)!);
-          setSource('memory');
-          setIsScanning(false);
-          return;
-      }
-
-      const variants = generateMorphologicalVariants(originalCleanWord);
-      let foundDef = '';
-
-      // --- TIER 1: HEAVY LOCAL CACHE (Instant) ---
-      for (const v of variants) {
-          if (CORE_DICTIONARY[v]) {
-              foundDef = CORE_DICTIONARY[v];
-              setDefinition(foundDef);
-              setSource('cache');
-              setIsScanning(false);
-              
-              // Save to Memory
-              MEMORY_CACHE.set(originalCleanWord, foundDef);
-              return; 
-          }
-      }
-
-      // --- TIER 2: SEFARIA API (Scroll) ---
-      try {
-        setDefinition('Accessing Sefaria Archives...');
-        
-        // Sorting variants by length might help prioritize roots.
-        const sortedVariants = [...variants].sort((a, b) => a.length - b.length); 
-        // Try Original first, then variants
-        const searchOrder = [originalCleanWord, ...sortedVariants.filter(v => v !== originalCleanWord)];
-
-        // Dedup search order
-        const uniqueSearchOrder = Array.from(new Set(searchOrder));
-
-        for (const apiWord of uniqueSearchOrder.slice(0, 4)) { // Limit to 4 checks
-             if (apiWord.length < 2) continue;
-
-             const result = await fetchSefariaDefinition(apiWord);
-             if (result) {
-                 foundDef = result;
-                 break;
-             }
-        }
-
-        if (foundDef) {
-            foundDef = foundDef.replace(/<[^>]*>?/gm, ''); // Clean HTML
-            setDefinition(foundDef);
-            setSource('api');
-            setIsScanning(false);
-            
-            // Save to Memory
-            MEMORY_CACHE.set(originalCleanWord, foundDef);
-            return;
-        }
-
-      } catch (err) {
-        console.warn("Sefaria lookup failed, trying backup...");
-      }
-
-      // --- TIER 3: WIKTIONARY API (Web) ---
-      try {
-        setDefinition('Consulting Global Wiki Grid...');
-        
-        const wikiVariants = [...variants].sort((a, b) => a.length - b.length);
-        
-        for (const wikiWord of wikiVariants.slice(0, 3)) {
-             if (wikiWord.length < 2) continue;
-
-             const response = await fetch(`https://en.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(wikiWord)}`);
-             
-             if (response.ok) {
-                 const data = await response.json();
-                 if (data.he && Array.isArray(data.he) && data.he.length > 0) {
-                     const firstEntry = data.he[0];
-                     if (firstEntry.definitions && firstEntry.definitions.length > 0) {
-                         foundDef = firstEntry.definitions[0].definition;
-                         break;
-                     }
-                 }
-             }
-             if (foundDef) break;
-        }
-
-        if (foundDef) {
-            foundDef = foundDef.replace(/<[^>]*>?/gm, ''); // Clean HTML
-            setDefinition(foundDef);
-            setSource('wiki');
-            
-            // Save to Memory
-            MEMORY_CACHE.set(originalCleanWord, foundDef);
-        } else {
-            setDefinition('Root structure unclear. Analyze context.');
-            setSource(null);
-            
-            // Optional: Cache failures to prevent retry? 
-            // MEMORY_CACHE.set(originalCleanWord, 'No definition found.');
-        }
-
-      } catch (err) {
-        console.error("Wiktionary lookup failed", err);
-        setDefinition('Connection interruption. Unable to retrieve definition.');
-        setSource(null);
-      } finally {
-        setIsScanning(false);
-      }
-
-    };
-
-    fetchMultiSourceDefinition();
-
-  }, [selectedWord]);
   
   const handleExport = async () => {
     if (exportRef.current && window.html2canvas) {
@@ -292,7 +62,33 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
     }
   };
 
-  // Derived State: Use cleaner logic strictly
+  // Logic: Direct Display of Passed Data
+  const hasData = selectedWord && selectedWord.aiDefinition;
+  
+  let definition = "Select a word...";
+  let root = "--";
+  let morphology = "--";
+  
+  if (selectedWord) {
+      if (hasData) {
+          definition = selectedWord.aiDefinition?.definition || "";
+          root = selectedWord.aiDefinition?.root || "";
+          morphology = selectedWord.aiDefinition?.morphology || "Root analysis complete";
+      } else {
+          // No Data available for this word. Check scan status.
+          if (verseScanStatus === 'scanning') {
+              definition = "Analyzing context...";
+              morphology = "Neural uplink active...";
+          } else if (verseScanStatus === 'complete') {
+              definition = "Word not found in AI map.";
+              morphology = "Try rescanning verse.";
+          } else {
+              definition = "Scan verse to unlock.";
+              morphology = "Awaiting manual scan.";
+          }
+      }
+  }
+
   const strictCleanText = selectedWord ? getCleanHebrew(selectedWord.text) : '';
   const breakdown = selectedWord ? getLetterBreakdown(strictCleanText) : [];
 
@@ -310,61 +106,41 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                </span>
                
                <div className="flex items-center gap-3">
-                   {source === 'ai' && (
+                   {hasData && (
                      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-[var(--color-accent-secondary)] bg-[var(--color-accent-primary)]/20 px-2 py-0.5 rounded border border-[var(--color-accent-secondary)]/30">
                         <CpuChipIcon className="w-3 h-3" />
                         <span>Gemini Flash</span>
                      </div>
                    )}
-                   {source === 'memory' && (
-                     <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-cyan-400 bg-cyan-900/20 px-2 py-0.5 rounded border border-cyan-500/30">
-                        <CpuChipIcon className="w-3 h-3" />
-                        <span>RAM</span>
-                     </div>
-                   )}
-                   {source === 'cache' && (
-                     <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-emerald-400 bg-emerald-900/20 px-2 py-0.5 rounded border border-emerald-500/30">
-                        <BoltIcon className="w-3 h-3" />
-                        <span>Instant</span>
-                     </div>
-                   )}
-                   {source === 'api' && (
-                     <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-[var(--color-accent-secondary)] bg-[var(--color-accent-primary)]/20 px-2 py-0.5 rounded border border-[var(--color-accent-secondary)]/30">
-                        <BookOpenIcon className="w-3 h-3" />
-                        <span>Archive</span>
-                     </div>
-                   )}
-                   {source === 'wiki' && (
-                     <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-pink-400 bg-pink-900/20 px-2 py-0.5 rounded border border-pink-500/30">
-                        <GlobeAmericasIcon className="w-3 h-3" />
-                        <span>Web Grid</span>
-                     </div>
-                   )}
-
-                   {isScanning && (
+                   
+                   {!hasData && selectedWord && verseScanStatus === 'scanning' && (
                     <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-[var(--color-accent-secondary)] animate-pulse">
-                        <GlobeAltIcon className="w-3 h-3 animate-spin" /> Uplink
+                         Scanning...
                     </span>
                    )}
                </div>
              </div>
 
-             <h2 id="decoder-word-container" className="flex flex-col md:flex-row md:flex-wrap md:items-baseline gap-2 md:gap-6 mt-2">
+             <div id="decoder-word-container" className="flex flex-col md:flex-row md:flex-wrap md:items-baseline gap-2 md:gap-6 mt-2">
                 <span id="decoder-hebrew" className="hebrew-text text-5xl md:text-6xl text-[var(--color-accent-secondary)] drop-shadow-[0_0_15px_var(--color-accent-secondary)] leading-tight max-w-full break-words">
                     {selectedWord ? selectedWord.text : "--"}
                 </span>
                 
                 {selectedWord && (
                   <div className="flex flex-col items-start gap-2 flex-1 min-w-[200px]">
+                     <span className="text-xs uppercase tracking-widest text-white/50">{morphology}</span>
                     <div className="flex items-baseline gap-3">
                         <span className="divider text-[#a0a8c0] font-light hidden md:inline select-none">//</span>
-                        <span id="decoder-english" className={`english-text text-lg md:text-xl font-normal leading-relaxed break-words ${isScanning ? 'text-[var(--color-accent-secondary)] opacity-80' : 'text-white/90'}`}>
+                        <span id="decoder-english" className={`english-text text-lg md:text-xl font-normal leading-relaxed break-words ${!hasData ? 'text-[var(--color-accent-secondary)] opacity-80 animate-pulse' : 'text-white/90'}`}>
                         {definition}
                         </span>
                     </div>
+                     {hasData && (
+                        <span className="text-xs text-[var(--color-accent-secondary)] mt-1">Root: {root}</span>
+                     )}
                   </div>
                 )}
-             </h2>
+             </div>
 
              {!selectedWord && (
                 <p className="text-[10px] text-[#a0a8c0] tech-font uppercase tracking-widest mt-2 animate-pulse">Awaiting Neural Link...</p>

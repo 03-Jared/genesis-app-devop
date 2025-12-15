@@ -30,12 +30,9 @@ const THEMES = {
   rose: { primary: '#be185d', secondary: '#ffe4e6', name: 'Mystic Rose' }
 };
 
-declare global {
-  interface Window {
-    html2canvas: any;
-    VERSE_DATA: any; // Global storage for AI data
-  }
-}
+// Initialize Global Variables
+window.VERSE_DATA = {};
+window.IS_SCANNING = false;
 
 const App: React.FC = () => {
   // Navigation State (Input fields)
@@ -60,9 +57,12 @@ const App: React.FC = () => {
   const [scriptureData, setScriptureData] = useState<SefariaResponse | null>(null);
   const [history, setHistory] = useState<WordData[]>([]);
   
-  // AI State
+  // AI State - Now using a flat structure to mirror window.VERSE_DATA for React reactivity
   const [aiData, setAiData] = useState<AiChapterData>({});
-  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  
+  // Track status of each verse being scanned: undefined (idle) | 'scanning' | 'complete' | 'error'
+  const [scanStatuses, setScanStatuses] = useState<Record<number, 'idle' | 'scanning' | 'complete' | 'error'>>({});
+  
   const [hoveredHebrewWord, setHoveredHebrewWord] = useState<string | null>(null);
   const [hoveredVerseIndex, setHoveredVerseIndex] = useState<number | null>(null);
 
@@ -148,41 +148,52 @@ const App: React.FC = () => {
 
   // --- GEMINI INTEGRATION ---
 
-  const getCleanHebrew = (text: string): string => {
-    return text.replace(/[^\u05D0-\u05EA]/g, "");
-  };
+  // 1. THE TRIGGER FUNCTION (Attached to the Button)
+  const scanVerse = async (verseIndex: number, hebrewText: string, englishText: string) => {
+    if (!process.env.API_KEY) {
+        console.warn("API Key missing");
+        return;
+    }
 
-  // Helper for analyzing a single verse, called by analyzeChapterWithAI
-  const analyzeSingleVerse = async (ai: GoogleGenAI, hebrewText: string, englishText: string, verseIndex: number) => {
-    // 2. The Logic for each verse (Fixed for Hyphens & Suffixes)
+    // 1. SAFETY CHECK: Is the app already working?
+    if (window.IS_SCANNING) {
+        console.warn("⚠️ Slow down! One verse at a time.");
+        return; 
+    }
+
+    // 2. LOCK THE APP
+    window.IS_SCANNING = true;
+    setScanStatuses(prev => ({ ...prev, [verseIndex]: 'scanning' }));
+    console.log(`🟦 SCANNING VERSE ${verseIndex + 1}...`);
+    
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
     const promptText = `
-    Role: Hebrew Morphology Expert.
-    Task: Map every Hebrew word in this verse to its English meaning.
+    Role: Expert Hebrew Linguist & Biblical Scholar.
+    Task: Map the Hebrew words in this SINGLE verse to English.
     
     Verse: "${hebrewText}"
     Translation: "${englishText}"
-
-    CRITICAL RULES FOR "UNRECOGNIZED" WORDS:
-    1. THE MAQAF (HYPHEN) RULE: 
-       - Words like "עַל־פְּנֵי" are TWO words joined by a hyphen.
-       - You MUST create a JSON key for the EXACT string "עַל־פְּנֵי" (or whatever the raw text uses).
-       - Definition: Define the compound phrase (e.g., "Upon the face of").
     
-    2. THE SUFFIX RULE:
-       - Words like "חֶפְצִי" (My Delight) have a suffix.
-       - Key: "חֶפְצִי" (Exact text).
-       - Root: "חפץ" (Delight).
-       - Definition: "My delight (Suffix 'i' = My)".
-
-    OUTPUT: Strict JSON object. Keys = EXACT Hebrew words from text.
-    {
-      "WORD_KEY": { "definition": "...", "root": "...", "english_match": "..." }
+    CRITICAL RULES:
+    1. Keys must be the EXACT Hebrew string from the text.
+    2. Handle MAQAF (Hyphens): "עַל־פְּנֵי" must be a single key "עַל־פְּנֵי".
+    3. Decompose suffixes: "חֶפְצִי" -> Root "Hefetz", Suffix "My".
+    
+    OUTPUT: Strict JSON object.
+    { 
+      "EXACT_HEBREW_WORD": { 
+          "definition": "Precise definition", 
+          "root": "3-letter root", 
+          "english_match": "Exact English phrase to highlight",
+          "morphology": "Morphology details"
+      } 
     }
     `;
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-flash', // Correct supported model
             contents: promptText,
             config: {
                 responseMimeType: 'application/json' 
@@ -190,65 +201,28 @@ const App: React.FC = () => {
         });
 
         let rawText = response.text || "";
-        if (!rawText) return null;
+        if (!rawText) throw new Error("Empty response");
         
         // Clean markdown just in case the model returns code blocks
         rawText = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "");
 
         const verseData = JSON.parse(rawText);
-        return { index: verseIndex, data: verseData };
+        
+        // B. Store Result - Merge new words into global storage
+        window.VERSE_DATA = { ...window.VERSE_DATA, ...verseData };
+        
+        // Update React State to trigger re-renders
+        setAiData(prev => ({ ...prev, ...verseData }));
+
+        setScanStatuses(prev => ({ ...prev, [verseIndex]: 'complete' }));
+        console.log(`🟩 SCAN COMPLETE for Verse ${verseIndex + 1}`, verseData);
 
     } catch (error: any) {
-        console.warn(`Verse ${verseIndex + 1} analysis failed:`, error);
-        return null;
-    }
-  };
-
-  // 1. NEW: Analyze the WHOLE chapter (Verse by Verse in batches)
-  const analyzeChapterWithAI = async (hebrewVerses: string[], englishVerses: string[]) => {
-    if (!process.env.API_KEY) {
-        console.warn("API Key missing");
-        return;
-    }
-
-    setIsAiAnalyzing(true);
-    console.log(`🟦 AI STATUS: Batch processing ${hebrewVerses.length} verses...`);
-    
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    // Chunking to avoid rate limits
-    const BATCH_SIZE = 3; 
-    
-    try {
-        for (let i = 0; i < hebrewVerses.length; i += BATCH_SIZE) {
-            const batchPromises = [];
-            const end = Math.min(i + BATCH_SIZE, hebrewVerses.length);
-            
-            for (let j = i; j < end; j++) {
-                batchPromises.push(analyzeSingleVerse(ai, hebrewVerses[j], englishVerses[j], j));
-            }
-            
-            // Wait for this batch
-            const results = await Promise.all(batchPromises);
-            
-            // Process results immediately so they pop in
-            const newAiData: AiChapterData = {};
-            results.forEach(res => {
-                if (res) {
-                    newAiData[res.index] = res.data;
-                    // Global Sync
-                    if (!window.VERSE_DATA) window.VERSE_DATA = {};
-                    window.VERSE_DATA[res.index] = res.data;
-                }
-            });
-            
-            setAiData(prev => ({ ...prev, ...newAiData }));
-        }
-        console.log("🟩 CHAPTER ANALYSIS COMPLETE");
-    } catch (error) {
-        console.error("Chapter analysis failed", error);
+        console.error(`Verse ${verseIndex + 1} analysis failed:`, error);
+        setScanStatuses(prev => ({ ...prev, [verseIndex]: 'error' }));
     } finally {
-        setIsAiAnalyzing(false);
+        // 3. UNLOCK THE APP
+        window.IS_SCANNING = false;
     }
   };
 
@@ -256,7 +230,9 @@ const App: React.FC = () => {
     setLoading(true);
     setScriptureData(null); 
     setAiData({}); // Reset AI data on new chapter
+    setScanStatuses({}); // Reset scan statuses
     window.VERSE_DATA = {}; // Reset global cache
+    window.IS_SCANNING = false; // Reset lock
     
     const currentBook = overrideBook || selectedBook;
     const currentChapter = overrideChapter || selectedChapter;
@@ -274,13 +250,6 @@ const App: React.FC = () => {
         chapter: currentChapter,
         verse: currentVerse
       });
-
-      // Trigger AI Analysis for the Whole Chapter
-      const he = Array.isArray(data.he) ? data.he : [data.he];
-      const en = Array.isArray(data.text) ? data.text : [data.text];
-      
-      // Start batch processing in background
-      analyzeChapterWithAI(he, en);
 
     } catch (error) {
       console.error("Failed to fetch scripture", error);
@@ -306,21 +275,15 @@ const App: React.FC = () => {
   };
 
   const handleWordClick = (word: string, verseIndex: number) => {
-    const clean = getCleanHebrew(word);
-    
-    // Check if we have AI data for this word (looking in React state which mirrors VERSE_DATA)
-    // We try to match primarily by exact Clean Hebrew, as per prompt instructions
-    // Also check raw word for Maqaf/Hyphenated support
-    let aiWordData = aiData[verseIndex]?.[clean];
-    
-    // Fallback: Check if AI returned it as the raw word (e.g. compound with hyphen)
-    if (!aiWordData && aiData[verseIndex]?.[word]) {
-        aiWordData = aiData[verseIndex][word];
-    }
+    console.log(`🔍 User clicked: ${word}`);
+    // Check our local storage (or React state copy)
+    // Flattened lookup based on EXACT_HEBREW_WORD key
+    const aiWordData = aiData[word];
+    const cleanForHistory = word.replace(/[^\u05D0-\u05EA]/g, "");
     
     const newWordData: WordData & { aiDefinition?: any } = { 
         text: word, 
-        cleanText: clean, 
+        cleanText: cleanForHistory, 
         verseIndex,
         aiDefinition: aiWordData // Pass AI data if available
     };
@@ -329,11 +292,11 @@ const App: React.FC = () => {
     setActiveMobilePanel('decoder');
     
     setHistory(prev => {
-      if (prev.length > 0 && prev[0].cleanText === clean) return prev;
+      if (prev.length > 0 && prev[0].text === word) return prev;
       return [newWordData, ...prev].slice(0, 10);
     });
 
-    const savedNote = localStorage.getItem(`rhema_notes_${clean}`);
+    const savedNote = localStorage.getItem(`rhema_notes_${cleanForHistory}`);
     setJournalNote(savedNote || '');
   };
 
@@ -365,17 +328,18 @@ const App: React.FC = () => {
           {words.map((word, idx) => {
               const raw = word.replace(/<[^>]*>?/gm, '');
               if (!raw) return null;
-              const clean = getCleanHebrew(raw);
-              const isHovered = hoveredHebrewWord === clean && hoveredVerseIndex === verseIndex;
               
-              // Check for AI data presence (Clean OR Raw for hyphenated words)
-              const hasAiData = aiData[verseIndex]?.[clean] || aiData[verseIndex]?.[raw];
+              // Direct exact match check
+              const isHovered = hoveredHebrewWord === raw && hoveredVerseIndex === verseIndex;
+              
+              // Check for AI data presence using exact key from flat structure
+              const hasAiData = !!aiData[raw];
 
               return (
                 <span 
                   key={idx}
                   onMouseEnter={() => {
-                      setHoveredHebrewWord(clean);
+                      setHoveredHebrewWord(raw);
                       setHoveredVerseIndex(verseIndex);
                   }}
                   onMouseLeave={() => {
@@ -402,23 +366,8 @@ const App: React.FC = () => {
 
   const renderEnglishVerse = (text: string, verseIndex: number) => {
       // Logic: If a Hebrew word in this verse is hovered, find its English match in AI data and highlight it.
-      if (hoveredVerseIndex === verseIndex && hoveredHebrewWord && aiData[verseIndex]) {
-          // Try to find the AI entry using clean hebrew or raw if mapped that way
-          // We need the raw word that triggered this hover. 
-          // Current state only tracks 'clean', but let's try to lookup clean first.
-          let aiEntry = aiData[verseIndex][hoveredHebrewWord];
-
-          // If not found by clean key, iterating to find if any key matches the clean version or if we can find it via context.
-          // Since we don't have the raw word in state here easily without changing state structure, 
-          // we rely on the fact that for non-hyphenated words clean key works.
-          // For hyphenated words, the hover state uses clean('עַל־פְּנֵי') -> 'עלפני'. 
-          // If AI returned 'עַל־פְּנֵי' as key, direct lookup fails. 
-          // Let's try to find a key in aiData that 'cleans' to our hovered word.
-          if (!aiEntry) {
-             const keys = Object.keys(aiData[verseIndex]);
-             const match = keys.find(k => getCleanHebrew(k) === hoveredHebrewWord);
-             if (match) aiEntry = aiData[verseIndex][match];
-          }
+      if (hoveredVerseIndex === verseIndex && hoveredHebrewWord && aiData[hoveredHebrewWord]) {
+          const aiEntry = aiData[hoveredHebrewWord];
           
           if (aiEntry && aiEntry.english_match) {
               const matchPhrase = aiEntry.english_match;
@@ -551,7 +500,7 @@ const App: React.FC = () => {
             GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}
          </h1>
          <div className="flex items-center gap-4">
-             {isAiAnalyzing && (
+             {Object.values(scanStatuses).some(s => s === 'scanning') && (
                  <div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]">
                     <span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>
                     Gemini Uplink Active
@@ -766,7 +715,16 @@ const App: React.FC = () => {
                     {hebrewVerses.map((verse, idx) => (
                       <div key={idx} className="verse-block group relative p-4 md:p-8 border border-white/0 hover:border-[var(--color-accent-secondary)]/20 hover:bg-[var(--color-accent-primary)]/5 transition-all duration-500 rounded-2xl">
                          <div className="flex gap-3 md:gap-4 items-start">
-                             <div className="flex-shrink-0 pt-1.5 md:pt-2"> 
+                             <div className="flex-shrink-0 pt-1.5 md:pt-2 flex items-center"> 
+                                <button 
+                                    id={`btn-${idx}`}
+                                    className={`ai-scan-btn ${scanStatuses[idx] === 'scanning' ? 'scanning-pulse' : ''} ${scanStatuses[idx] === 'complete' ? 'scan-success' : ''}`}
+                                    onClick={() => scanVerse(idx, verse, englishVerses[idx]?.replace(/<[^>]*>?/gm, ''))}
+                                    title="Analyze Verse with Gemini AI"
+                                    disabled={scanStatuses[idx] === 'scanning' || window.IS_SCANNING}
+                                >
+                                    {scanStatuses[idx] === 'scanning' ? '⏳' : scanStatuses[idx] === 'complete' ? '✅' : scanStatuses[idx] === 'error' ? '⚠️' : '⚡'}
+                                </button>
                                 <span className={`${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10 h-fit`}>
                                   {activeRef.verse ? activeRef.verse : idx + 1}
                                 </span>
@@ -823,6 +781,7 @@ const App: React.FC = () => {
                 onNoteChange={handleNoteChange}
                 bookName={activeRef.book}
                 chapter={activeRef.chapter}
+                verseScanStatus={selectedWord ? scanStatuses[selectedWord.verseIndex] : 'idle'}
               />
            </div>
         </section>

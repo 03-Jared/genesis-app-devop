@@ -41,12 +41,20 @@ export interface AiWordAnalysis {
   definition: string;
   english_match: string;
   root: string;
+  morphology?: string;
 }
 
 export interface AiVerseData {
-  [cleanWord: string]: AiWordAnalysis;
+  [exactWord: string]: AiWordAnalysis;
 }
 
-export interface AiChapterData {
-  [verseIndex: number]: AiVerseData;
+// Flat structure as per new "Clean Logic" requirements
+export type AiChapterData = Record<string, AiWordAnalysis>;
+
+// Global augmentation
+declare global {
+  interface Window {
+    VERSE_DATA: AiChapterData;
+    IS_SCANNING: boolean;
+  }
 }

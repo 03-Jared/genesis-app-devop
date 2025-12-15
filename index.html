@@ -201,6 +201,56 @@
       .mode-reader .verse-block:hover {
         background-color: rgba(255, 255, 255, 0.05);
       }
+
+      /* --- AI SCAN BUTTON --- */
+      .ai-scan-btn {
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid #444;
+          color: var(--color-accent-secondary);
+          cursor: pointer;
+          font-size: 1.1rem;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+          margin-right: 10px;
+      }
+
+      .ai-scan-btn:hover {
+          background: rgba(0, 229, 255, 0.15);
+          box-shadow: 0 0 8px var(--color-accent-secondary);
+          transform: scale(1.1);
+          border-color: var(--color-accent-secondary);
+      }
+      
+      .ai-scan-btn:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+      }
+
+      /* Loading State */
+      .scanning-pulse {
+          animation: spin-pulse 1s infinite linear;
+          cursor: wait;
+          opacity: 0.8;
+          border-color: var(--color-accent-secondary);
+      }
+
+      @keyframes spin-pulse {
+          0% { transform: rotate(0deg); text-shadow: 0 0 5px var(--color-accent-secondary); }
+          50% { opacity: 0.5; }
+          100% { transform: rotate(360deg); text-shadow: 0 0 15px var(--color-accent-secondary); }
+      }
+
+      /* Success State */
+      .scan-success {
+          color: #00ff88; /* Green */
+          border-color: #00ff88;
+          box-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+      }
       
       /* --- PANEL HEADERS & WINDOW CONTROLS --- */
       .panel-header {
