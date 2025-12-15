@@ -148,17 +148,21 @@ const App: React.FC = () => {
 
   // --- GEMINI INTEGRATION ---
 
+  // Helper for delay
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   // 1. THE TRIGGER FUNCTION (Attached to the Button)
   const scanVerse = async (verseIndex: number, hebrewText: string, englishText: string) => {
-    if (!process.env.API_KEY) {
-        console.warn("API Key missing");
-        return;
-    }
-
     // 1. SAFETY CHECK: Is the app already working?
     if (window.IS_SCANNING) {
-        console.warn("⚠️ Slow down! One verse at a time.");
+        console.warn("⚠️ Whoa! One verse at a time. System locked.");
         return; 
+    }
+
+    if (!process.env.API_KEY) {
+        console.error("API Key missing! Please set process.env.API_KEY.");
+        alert("System Error: Neural Link Disconnected (API Key Missing).");
+        return;
     }
 
     // 2. LOCK THE APP
@@ -168,16 +172,16 @@ const App: React.FC = () => {
     
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+    // 3. THE PROMPT (Handles Hyphens & Suffixes)
     const promptText = `
-    Role: Expert Hebrew Linguist & Biblical Scholar.
-    Task: Map the Hebrew words in this SINGLE verse to English.
-    
+    Role: Expert Hebrew Linguist.
+    Task: Map Hebrew words in this SINGLE verse to English.
     Verse: "${hebrewText}"
     Translation: "${englishText}"
     
-    CRITICAL RULES:
+    CRITICAL RULES: 
     1. Keys must be the EXACT Hebrew string from the text.
-    2. Handle MAQAF (Hyphens): "עַל־פְּנֵי" must be a single key "עַל־פְּנֵי".
+    2. Handle Maqaf (hyphens) like "עַל־פְּנֵי" as ONE single key "עַל־פְּנֵי".
     3. Decompose suffixes: "חֶפְצִי" -> Root "Hefetz", Suffix "My".
     
     OUTPUT: Strict JSON object.
@@ -185,23 +189,43 @@ const App: React.FC = () => {
       "EXACT_HEBREW_WORD": { 
           "definition": "Precise definition", 
           "root": "3-letter root", 
-          "english_match": "Exact English phrase to highlight",
-          "morphology": "Morphology details"
+          "english_match": "Exact English phrase to highlight" 
       } 
     }
     `;
 
     try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash', // Correct supported model
-            contents: promptText,
-            config: {
-                responseMimeType: 'application/json' 
-            }
-        });
+        let attempts = 0;
+        const maxAttempts = 3;
+        let rawText = "";
 
-        let rawText = response.text || "";
-        if (!rawText) throw new Error("Empty response");
+        // Retry Loop for Rate Limiting
+        while (attempts < maxAttempts) {
+            try {
+                const response = await ai.models.generateContent({
+                    // Using 'gemini-2.5-flash-lite' for higher free quota limits (~1500 RPD)
+                    model: 'gemini-2.5-flash-lite', 
+                    contents: promptText,
+                    config: {
+                        responseMimeType: 'application/json' 
+                    }
+                });
+                rawText = response.text || "";
+                if (!rawText) throw new Error("Empty response from AI");
+                break; // Success, exit loop
+            } catch (error: any) {
+                attempts++;
+                const isRateLimit = error.message && (error.message.includes('429') || error.message.includes('Quota') || error.message.includes('503'));
+                
+                if (isRateLimit && attempts < maxAttempts) {
+                    const delayMs = 2000 * attempts; // Exponential backoff: 2s, 4s...
+                    console.warn(`⚠️ Rate limit hit. Retrying in ${delayMs/1000}s... (Attempt ${attempts}/${maxAttempts})`);
+                    await wait(delayMs);
+                    continue;
+                }
+                throw error; // Rethrow if max attempts reached or unknown error
+            }
+        }
         
         // Clean markdown just in case the model returns code blocks
         rawText = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "");
@@ -220,8 +244,15 @@ const App: React.FC = () => {
     } catch (error: any) {
         console.error(`Verse ${verseIndex + 1} analysis failed:`, error);
         setScanStatuses(prev => ({ ...prev, [verseIndex]: 'error' }));
+        
+        // Provide user feedback on common errors
+        if (error.message && (error.message.includes('429') || error.message.includes('Quota'))) {
+            alert("⚠️ Neural Link Overloaded (Quota Exceeded). Please wait 60 seconds before trying again.");
+        } else {
+            alert("⚠️ Scan Failed. See console for details.");
+        }
     } finally {
-        // 3. UNLOCK THE APP
+        // 5. UNLOCK THE APP (Crucial: Always runs)
         window.IS_SCANNING = false;
     }
   };
