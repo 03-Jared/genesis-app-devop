@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS } from './constants';
+import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS, DEFAULT_HEBREW_MAP, SOFIT_MAP } from './constants';
 import { SefariaResponse, WordData, AiChapterData } from './types';
 import WordBreakdownPanel from './components/WordBreakdownPanel';
 import { 
@@ -347,6 +347,87 @@ const App: React.FC = () => {
     }
   };
 
+  const handleWordHover = (e: React.MouseEvent, word: string, verseIndex: number) => {
+      setHoveredHebrewWord(word);
+      setHoveredVerseIndex(verseIndex);
+
+      // Popup Logic
+      const popup = document.getElementById("hover-popup");
+      if (!popup) return;
+
+      // Clean word to get pure consonants
+      const cleanLetters = word.replace(/[^\u05D0-\u05EA]/g, "").split("");
+      if (cleanLetters.length === 0) return;
+
+      // Build HTML
+      let sequenceHtml = `<div class="popup-sequence">`;
+      
+      cleanLetters.forEach((char, index) => {
+          // Handle final forms (sofit) mapping to standard letters
+          const rootChar = SOFIT_MAP[char] || char;
+          const data = DEFAULT_HEBREW_MAP[rootChar];
+          
+          if (data) {
+             sequenceHtml += `
+                <div class="popup-card">
+                    <span class="popup-img">${data.emoji}</span>
+                    <span class="popup-letter">${char}</span>
+                </div>
+            `;
+            // Add arrow if not last
+            if (index < cleanLetters.length - 1) {
+                sequenceHtml += `<span class="popup-arrow">→</span>`;
+            }
+          }
+      });
+      sequenceHtml += `</div>`;
+      
+      // Add Definition from AI Data if available
+      const aiEntry = aiData[word];
+      if (aiEntry) {
+         sequenceHtml += `
+            <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; text-align: center;">
+                <strong style="color: #fff; font-size: 0.9rem; display: block; margin-bottom: 2px;">${aiEntry.english_match || "Analysis"}</strong>
+                <span style="color: #a0a8c0; font-size: 0.75rem; font-family: 'Space Grotesk', sans-serif;">${aiEntry.definition}</span>
+            </div>
+         `;
+      }
+
+      popup.innerHTML = sequenceHtml;
+
+      // Position Popup (Offset to avoid cursor)
+      const x = e.clientX + 15;
+      const y = e.clientY + 15;
+      
+      popup.style.left = `${x}px`;
+      popup.style.top = `${y}px`;
+      popup.style.display = "block";
+      
+      // Animation frame for smooth opacity transition
+      requestAnimationFrame(() => {
+        popup.style.opacity = "1";
+        popup.style.transform = "translateY(0px)";
+      });
+  };
+
+  const handleWordLeave = () => {
+      setHoveredHebrewWord(null);
+      setHoveredVerseIndex(null);
+
+      const popup = document.getElementById("hover-popup");
+      if (!popup) return;
+      
+      popup.style.opacity = "0";
+      popup.style.transform = "translateY(-10px)";
+      
+      // Wait for animation before setting display none
+      setTimeout(() => {
+          if (popup.style.opacity === "0") { 
+            popup.style.display = "none";
+          }
+      }, 200);
+  }
+
   // --- RENDERERS ---
 
   const renderHebrewVerse = (text: string, verseIndex: number) => {
@@ -370,14 +451,8 @@ const App: React.FC = () => {
               return (
                 <span 
                   key={idx}
-                  onMouseEnter={() => {
-                      setHoveredHebrewWord(raw);
-                      setHoveredVerseIndex(verseIndex);
-                  }}
-                  onMouseLeave={() => {
-                      setHoveredHebrewWord(null);
-                      setHoveredVerseIndex(null);
-                  }}
+                  onMouseEnter={(e) => handleWordHover(e, raw, verseIndex)}
+                  onMouseLeave={handleWordLeave}
                   onClick={() => handleWordClick(raw, verseIndex)}
                   className={`
                     cursor-pointer transition-all duration-300 rounded px-1.5 py-0.5 relative
@@ -526,6 +601,9 @@ const App: React.FC = () => {
   return (
     <div className="h-[100dvh] w-full cosmic-bg text-[#a0a8c0] overflow-hidden flex flex-col p-0 md:p-6 gap-0 md:gap-6 relative">
       
+      {/* Hidden Hover Popup Container */}
+      <div id="hover-popup"></div>
+
       {/* App Header */}
       <header className="hidden md:flex justify-between items-center py-2 px-4 border-b border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 rounded-2xl mb-2 backdrop-blur-sm">
          <h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">
