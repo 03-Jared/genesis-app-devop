@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { WordData, LetterDefinition, AiWordAnalysis } from '../types';
 import { DEFAULT_HEBREW_MAP, SOFIT_MAP } from '../constants';
-import { ArrowDownTrayIcon, CpuChipIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, CpuChipIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 declare global {
   interface Window {
@@ -95,6 +95,9 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   return (
     <div className="flex flex-col animate-fadeIn relative pb-8">
       
+      {/* Title Header */}
+      <div className="text-[10px] tech-font text-[var(--color-accent-secondary)] uppercase tracking-widest mb-4 text-center">Morphological Analysis</div>
+
       {/* --- DECODER CARD (Top) --- */}
       <div className="decoder-card mb-6 p-6 rounded-2xl glass-panel border border-[var(--color-accent-primary)]/30 relative overflow-hidden group h-auto">
          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-accent-secondary)] blur-[80px] opacity-10 pointer-events-none"></div>
@@ -150,40 +153,40 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
 
       {selectedWord && (
         <>
-            {/* Breakdown Grid (Pictographic Sequence) */}
-            <div className="mb-8">
-                <div className="text-[10px] tech-font text-[var(--color-accent-secondary)] uppercase tracking-widest mb-4 text-center">Pictographic Sequence</div>
+            {/* Breakdown Horizontal Sequence */}
+            <div className="mb-8 w-full bg-[#090a20]/20 rounded-2xl border border-[var(--color-accent-primary)]/10 p-6 backdrop-blur-sm">
+                <div className="text-[10px] tech-font text-[var(--color-accent-secondary)] uppercase tracking-widest mb-6 text-center border-b border-[var(--color-accent-primary)]/20 pb-4 w-1/2 mx-auto">
+                    Pictographic Sequence
+                </div>
                 
-                <div className="grid grid-cols-2 gap-3 pb-4">
+                <div className="flex flex-row items-start justify-start md:justify-center gap-2 md:gap-4 overflow-x-auto pb-4 scrollbar-hide">
                 {breakdown.map((l, i) => (
-                    <div 
-                    key={i} 
-                    className="
-                        flex flex-col items-center justify-center 
-                        bg-[#090a20]/40 border border-[var(--color-accent-primary)]/20 rounded-2xl p-4 aspect-[4/5]
-                        hover:bg-[var(--color-accent-primary)]/10 hover:border-[var(--color-accent-secondary)]/50 hover:-translate-y-1 hover:shadow-[0_0_20px_var(--color-accent-primary)]
-                        transition-all duration-300
-                        group relative overflow-hidden
-                    "
-                    >
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#090a20] to-transparent pointer-events-none"></div>
-                    
-                    <span className="text-4xl mb-4 transform group-hover:scale-110 transition-transform duration-500 drop-shadow-[0_0_10px_var(--color-accent-secondary)] z-10 grayscale group-hover:grayscale-0">
-                        {l.emoji}
-                    </span>
-                    
-                    <div className="relative z-10 text-center w-full">
-                        <div className="flex flex-col items-center justify-center gap-1 mb-2">
-                        <span className="hebrew-text text-2xl text-[#a0a8c0] group-hover:text-white transition-colors">{l.char}</span>
-                        <span className="text-[var(--color-accent-secondary)] font-bold text-[10px] uppercase tracking-widest">{l.name}</span>
+                    <React.Fragment key={i}>
+                        <div className="flex flex-col items-center gap-3 shrink-0 group min-w-[90px]">
+                             {/* Image Container */}
+                             <div className="w-20 h-20 flex items-center justify-center bg-[#090a20] border border-[var(--color-accent-primary)]/30 rounded-xl relative shadow-[0_4px_10px_rgba(0,0,0,0.3)] group-hover:border-[var(--color-accent-secondary)] group-hover:shadow-[0_0_15px_var(--color-accent-primary)] transition-all duration-300">
+                                  <div className="absolute inset-0 bg-[var(--color-accent-primary)]/5 rounded-xl"></div>
+                                  <span className="text-4xl filter drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] transform group-hover:scale-110 transition-transform duration-300 z-10">{l.emoji}</span>
+                             </div>
+                             
+                             {/* Labels Below */}
+                             <div className="text-center flex flex-col gap-1">
+                                <div className="text-[10px] md:text-[11px] font-bold text-white uppercase tracking-wider font-mono whitespace-nowrap">
+                                    <span className="text-[var(--color-accent-secondary)]">{l.char}</span> - {l.name.toUpperCase()}
+                                </div>
+                                <div className="text-[8px] md:text-[9px] text-[#a0a8c0] uppercase tracking-widest opacity-80 tech-font px-2 bg-white/5 rounded py-0.5 whitespace-nowrap">
+                                    {l.pictograph}
+                                </div>
+                             </div>
                         </div>
-                        
-                        <div className="text-[9px] text-[#a0a8c0] uppercase tracking-widest mb-1">{l.pictograph}</div>
-                        <div className="text-[10px] text-white font-sans text-center leading-tight opacity-0 group-hover:opacity-100 transition-opacity absolute w-full top-full group-hover:-translate-y-full bg-[#090a20]/90 backdrop-blur-md p-2 rounded border border-[var(--color-accent-secondary)]/30">
-                        {l.meaning}
-                        </div>
-                    </div>
-                    </div>
+
+                        {/* Arrow */}
+                        {i < breakdown.length - 1 && (
+                             <div className="h-20 flex items-center justify-center">
+                                <ArrowRightIcon className="w-4 h-4 text-[var(--color-accent-primary)]/50 shrink-0" />
+                             </div>
+                        )}
+                    </React.Fragment>
                 ))}
                 </div>
             </div>
