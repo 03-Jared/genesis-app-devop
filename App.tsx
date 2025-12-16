@@ -17,7 +17,8 @@ import {
   CpuChipIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  CursorArrowRaysIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -77,6 +78,7 @@ const App: React.FC = () => {
   // Reader Preferences State
   const [isReaderMode, setIsReaderMode] = useState(false);
   const [fontSizeLevel, setFontSizeLevel] = useState(0); // 0: Normal, 1: Large, 2: XL
+  const [isHoverEnabled, setIsHoverEnabled] = useState(true);
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -93,6 +95,7 @@ const App: React.FC = () => {
     const storedTheme = localStorage.getItem('genesis_theme');
     const storedReaderMode = localStorage.getItem('genesis_reader_mode');
     const storedFontSize = localStorage.getItem('genesis_font_size');
+    const storedHover = localStorage.getItem('genesis_hover_enabled');
 
     if (storedUser) {
         setUsername(storedUser);
@@ -104,6 +107,7 @@ const App: React.FC = () => {
 
     if (storedReaderMode) setIsReaderMode(storedReaderMode === 'true');
     if (storedFontSize) setFontSizeLevel(parseInt(storedFontSize));
+    if (storedHover !== null) setIsHoverEnabled(storedHover === 'true');
 
     fetchScripture();
   }, []);
@@ -144,6 +148,12 @@ const App: React.FC = () => {
     const newLevel = (fontSizeLevel + 1) % 3;
     setFontSizeLevel(newLevel);
     localStorage.setItem('genesis_font_size', String(newLevel));
+  };
+
+  const toggleHover = () => {
+      const newVal = !isHoverEnabled;
+      setIsHoverEnabled(newVal);
+      localStorage.setItem('genesis_hover_enabled', String(newVal));
   };
 
   // --- GEMINI INTEGRATION ---
@@ -348,6 +358,8 @@ const App: React.FC = () => {
   };
 
   const handleWordHover = (e: React.MouseEvent, word: string, verseIndex: number) => {
+      if (!isHoverEnabled) return;
+
       setHoveredHebrewWord(word);
       setHoveredVerseIndex(verseIndex);
 
@@ -784,6 +796,16 @@ const App: React.FC = () => {
                   T<span className="text-[0.8em]">t</span>
                 </button>
                 
+                <div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div>
+
+                <button 
+                  onClick={toggleHover}
+                  className={`transition-colors p-1 ${isHoverEnabled ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`}
+                  title={isHoverEnabled ? "Disable Hover Decoder" : "Enable Hover Decoder"}
+                >
+                  <CursorArrowRaysIcon className="w-4 h-4 md:w-5 md:h-5" />
+                </button>
+
                 <div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div>
 
                 <button onClick={() => toggleMaximize('reader')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">
