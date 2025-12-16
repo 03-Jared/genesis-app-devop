@@ -358,10 +358,12 @@ const App: React.FC = () => {
   };
 
   const handleWordHover = (e: React.MouseEvent, word: string, verseIndex: number) => {
-      if (!isHoverEnabled) return;
-
+      // 1. Base Functionality: Highlighting (ALWAYS ON)
       setHoveredHebrewWord(word);
       setHoveredVerseIndex(verseIndex);
+
+      // 2. Add-On Functionality: Pictographic Popup (TOGGLEABLE)
+      if (!isHoverEnabled) return;
 
       // Popup Logic
       const popup = document.getElementById("hover-popup");
