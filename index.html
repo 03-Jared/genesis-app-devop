@@ -438,8 +438,11 @@
 
       .designer-preview-area {
           flex: 1; background: #050510;
-          display: flex; align-items: center; justify-content: center;
-          padding: 40px; overflow-y: auto;
+          display: flex; 
+          flex-direction: column; /* Column ensures better scrolling behavior */
+          align-items: center; /* Horizontally center */
+          padding: 40px; 
+          overflow-y: auto;
       }
 
       .preview-card-wrap {
@@ -449,6 +452,9 @@
           border-radius: 32px;
           border: 1px solid rgba(255, 255, 255, 0.1);
           text-align: center;
+          margin-top: auto; /* Auto margin safely centers vertically if space exists */
+          margin-bottom: auto; /* And keeps it at the top if it overflows */
+          flex-shrink: 0;
       }
 
       /* Custom Toggle Switch for Designer */

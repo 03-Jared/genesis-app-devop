@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { WordData, AiWordAnalysis, LetterDefinition } from '../types';
 import { DEFAULT_HEBREW_MAP, SOFIT_MAP } from '../constants';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
@@ -22,6 +22,14 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Force scroll to top when modal opens
+    if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = 0;
+    }
+  }, []);
 
   const analysis = selectedWord.aiDefinition;
   
@@ -112,7 +120,7 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
         </div>
 
         {/* Right: Live Preview */}
-        <div className="designer-preview-area">
+        <div className="designer-preview-area" ref={scrollContainerRef}>
           <div ref={previewRef} className="preview-card-wrap relative shadow-[0_30px_90px_rgba(0,0,0,0.6)]">
              <div className="absolute top-6 left-8 text-[9px] tech-font text-[var(--color-accent-secondary)] tracking-[0.3em] opacity-50 uppercase">
                 Genesis Reveal // Neural Export
