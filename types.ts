@@ -42,6 +42,7 @@ export interface AiWordAnalysis {
   english_match: string;
   root: string;
   morphology?: string;
+  reflection?: string;
 }
 
 export interface AiVerseData {
@@ -56,5 +57,6 @@ declare global {
   interface Window {
     VERSE_DATA: AiChapterData;
     IS_SCANNING: boolean;
+    html2canvas: any;
   }
 }

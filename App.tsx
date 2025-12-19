@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS, DEFAULT_HEBREW_MAP, SOFIT_MAP } from './constants';
-import { SefariaResponse, WordData, AiChapterData } from './types';
+import { SefariaResponse, WordData, AiChapterData, AiWordAnalysis } from './types';
 import WordBreakdownPanel from './components/WordBreakdownPanel';
+import ExportPreviewModal from './components/ExportPreviewModal';
 import { 
   BookOpenIcon, 
   MagnifyingGlassIcon, 
@@ -31,17 +32,14 @@ const THEMES = {
   rose: { primary: '#be185d', secondary: '#ffe4e6', name: 'Mystic Rose' }
 };
 
-// Initialize Global Variables
 window.VERSE_DATA = {};
 window.IS_SCANNING = false;
 
 const App: React.FC = () => {
-  // Navigation State (Input fields)
   const [selectedBook, setSelectedBook] = useState('Genesis');
   const [selectedChapter, setSelectedChapter] = useState(1);
   const [selectedVerse, setSelectedVerse] = useState('');
   
-  // Active State (What is currently displayed on screen)
   const [activeRef, setActiveRef] = useState({ 
     book: 'Genesis', 
     chapter: 1, 
@@ -50,38 +48,30 @@ const App: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
-  
-  // Identity State
   const [username, setUsername] = useState('');
 
-  // Data State
   const [scriptureData, setScriptureData] = useState<SefariaResponse | null>(null);
   const [history, setHistory] = useState<WordData[]>([]);
   
-  // AI State
   const [aiData, setAiData] = useState<AiChapterData>({});
-  
-  // Track status of each verse being scanned
   const [scanStatuses, setScanStatuses] = useState<Record<number, 'idle' | 'scanning' | 'complete' | 'error'>>({});
   
   const [hoveredHebrewWord, setHoveredHebrewWord] = useState<string | null>(null);
   const [hoveredVerseIndex, setHoveredVerseIndex] = useState<number | null>(null);
 
-  // Interaction State
-  const [selectedWord, setSelectedWord] = useState<WordData | null>(null);
+  const [selectedWord, setSelectedWord] = useState<(WordData & { aiDefinition?: AiWordAnalysis }) | null>(null);
   const [journalNote, setJournalNote] = useState('');
   
-  // Layout State
   const [maximizedPanel, setMaximizedPanel] = useState<PanelId | null>(null);
   const [activeMobilePanel, setActiveMobilePanel] = useState<PanelId>('reader');
 
-  // Reader Preferences State
   const [isReaderMode, setIsReaderMode] = useState(false);
   const [fontSizeLevel, setFontSizeLevel] = useState(0); 
   const [isHoverEnabled, setIsHoverEnabled] = useState(true);
 
-  // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  
   const [settings, setSettings] = useState({
     theme: 'cyan' as keyof typeof THEMES,
     glowFactor: 100, 
@@ -89,12 +79,10 @@ const App: React.FC = () => {
     showHologram: true,
   });
 
-  // Device check (Mobile/Tablet exclusion rule)
   const isTouchDevice = () => {
     return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
   };
 
-  // Initial Load
   useEffect(() => {
     const storedUser = localStorage.getItem('genesis_username');
     const storedTheme = localStorage.getItem('genesis_theme');
@@ -113,7 +101,6 @@ const App: React.FC = () => {
     fetchScripture();
   }, []);
 
-  // Theme Application
   useEffect(() => {
     const root = document.documentElement;
     const theme = THEMES[settings.theme];
@@ -123,7 +110,6 @@ const App: React.FC = () => {
     root.style.setProperty('--glow-factor', (settings.glowFactor / 100).toString());
   }, [settings]);
 
-  // Handle Book Change
   useEffect(() => {
     const maxChapters = BIBLE_DATA[selectedBook] || 50;
     if (selectedChapter > maxChapters) {
@@ -157,7 +143,6 @@ const App: React.FC = () => {
       localStorage.setItem('genesis_hover_enabled', String(newVal));
   };
 
-  // Helper for delay
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const scanVerse = async (verseIndex: number, hebrewText: string, englishText: string) => {
@@ -172,7 +157,24 @@ const App: React.FC = () => {
     setScanStatuses(prev => ({ ...prev, [verseIndex]: 'scanning' }));
     
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const promptText = `Analyze verse: "${hebrewText}" Translation: "${englishText}". Keys must be EXACT string from text. Return JSON { "string": { "definition": "", "root": "", "english_match": "" } }`;
+    // Added reflection to the prompt
+    const promptText = `
+    Analyze the following Hebrew verse: "${hebrewText}"
+    Context (English Translation): "${englishText}"
+    
+    Task: Map every Hebrew word in the verse to its meaning and provide deep spiritual analysis.
+    
+    IMPORTANT: You MUST return a JSON object where EACH KEY is a Hebrew word EXACTLY as it appears in the verse string provided.
+    
+    JSON format for each entry:
+    {
+      "definition": "Detailed translation/meaning",
+      "root": "Hebrew root characters",
+      "english_match": "The specific word from the context string that translates this word",
+      "morphology": "Grammar details (e.g. Noun, Masculine, Singular)",
+      "reflection": "A 1-2 sentence deep spiritual insight based on the word and its pictographic components"
+    }
+    `;
 
     try {
         let attempts = 0;
@@ -182,7 +184,7 @@ const App: React.FC = () => {
         while (attempts < maxAttempts) {
             try {
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash-lite', 
+                    model: 'gemini-3-flash-preview', 
                     contents: promptText,
                     config: { responseMimeType: 'application/json' }
                 });
@@ -203,6 +205,15 @@ const App: React.FC = () => {
         window.VERSE_DATA = { ...window.VERSE_DATA, ...verseData };
         setAiData(prev => ({ ...prev, ...verseData }));
         setScanStatuses(prev => ({ ...prev, [verseIndex]: 'complete' }));
+        
+        // Update selected word if it matches current scan
+        if (selectedWord && selectedWord.verseIndex === verseIndex) {
+            const updatedAnalysis = verseData[selectedWord.text];
+            if (updatedAnalysis) {
+                setSelectedWord({ ...selectedWord, aiDefinition: updatedAnalysis });
+            }
+        }
+
     } catch (error: any) {
         setScanStatuses(prev => ({ ...prev, [verseIndex]: 'error' }));
     } finally {
@@ -267,11 +278,9 @@ const App: React.FC = () => {
   };
 
   const handleWordHover = (e: React.MouseEvent, word: string, verseIndex: number) => {
-      // 1. BASE FUNCTION: Highlight English (ALWAYS ON, including Mobile touch hold if browser allows)
       setHoveredHebrewWord(word);
       setHoveredVerseIndex(verseIndex);
 
-      // 2. EXCLUSION RULE: No pictographic hover on Mobile/Tablet
       if (!isHoverEnabled || isTouchDevice()) return;
 
       const popup = document.getElementById("hover-popup");
@@ -399,7 +408,7 @@ const App: React.FC = () => {
 
         <section className={getPanelClass('reader')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><BookOpenIcon className="w-4 h-4" /> Scripture</h2><div className="window-controls"><div className="flex items-center gap-1 border-r border-[var(--color-accent-primary)]/20 pr-2 mr-2"><button onClick={() => handleChapterNav('prev')} disabled={selectedChapter <= 1} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronLeftIcon className="w-4 h-4" /></button><span className="text-[10px] font-mono text-[var(--color-accent-secondary)] w-6 text-center">{selectedChapter}</span><button onClick={() => handleChapterNav('next')} disabled={selectedChapter >= maxChapters} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronRightIcon className="w-4 h-4" /></button></div><button onClick={toggleReaderMode} className={`transition-colors p-1 ${isReaderMode ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isReaderMode ? "Reader Mode Active" : "Interlinear Mode"}><BookOpenIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={cycleFontSize} className="font-serif font-bold text-xs md:text-sm text-[#a0a8c0] hover:text-white transition-colors flex items-end leading-none" title="Toggle Font Size">T<span className="text-[0.8em]">t</span></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={toggleHover} className={`transition-colors p-1 ${isHoverEnabled ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isHoverEnabled ? "Disable Hover Decoder" : "Enable Hover Decoder"}><CursorArrowRaysIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={() => toggleMaximize('reader')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'reader' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div><div className="reader-content flex-1 overflow-y-auto p-4 md:p-12 relative scroll-smooth">{loading && (<div className="h-full flex flex-col items-center justify-center gap-6"><div className="w-16 h-16 border-2 border-[var(--color-accent-secondary)] border-t-transparent rounded-full animate-spin"></div><span className="tech-font text-xs uppercase tracking-[0.3em] text-[var(--color-accent-secondary)] animate-pulse">Receiving Transmission...</span></div>)}{!scriptureData && !loading && (<div className="h-full flex flex-col items-center justify-center text-[#a0a8c0] opacity-50"><BookOpenIcon className="w-20 h-20 mb-6 stroke-1 text-[var(--color-accent-primary)]" /><p className="tech-font text-sm uppercase tracking-[0.2em]">Select text to begin</p></div>)}{scriptureData && !loading && (<div className="max-w-4xl mx-auto space-y-16 animate-fadeIn pb-32"><div className="text-center"><h2 className="text-2xl md:text-6xl font-normal text-white mb-4 cinzel-font tracking-widest cyan-glow">{activeRef.book} <span className="text-white ml-3">{activeRef.chapter}{activeRef.verse ? `:${activeRef.verse}` : ''}</span></h2><div className="h-[1px] w-32 md:w-48 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent mx-auto opacity-70"></div></div><div id="readerContent" className={`space-y-6 md:space-y-8 ${isReaderMode ? 'mode-reader' : ''}`}>{hebrewVerses.map((verse, idx) => (<div key={idx} className="verse-block group relative p-4 md:p-8 border border-white/0 hover:border-[var(--color-accent-secondary)]/20 hover:bg-[var(--color-accent-primary)]/5 transition-all duration-500 rounded-2xl"><div className="flex gap-3 md:gap-4 items-start"><div className="flex-shrink-0 pt-1.5 md:pt-2 flex items-center"><button id={`btn-${idx}`} className={`ai-scan-btn ${scanStatuses[idx] === 'scanning' ? 'scanning-pulse' : ''} ${scanStatuses[idx] === 'complete' ? 'scan-success' : ''}`} onClick={() => scanVerse(idx, verse, englishVerses[idx]?.replace(/<[^>]*>?/gm, ''))} title="Analyze Verse with Gemini AI" disabled={scanStatuses[idx] === 'scanning' || window.IS_SCANNING}>{scanStatuses[idx] === 'scanning' ? '⏳' : scanStatuses[idx] === 'complete' ? '✅' : scanStatuses[idx] === 'error' ? '⚠️' : '⚡'}</button><span className={`${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10 h-fit`}>{activeRef.verse ? activeRef.verse : idx + 1}</span></div><div className="flex-grow"><p className={`english-line text-[#a0a8c0] font-light font-sans leading-loose mb-6 group-hover:text-white transition-colors ${englishSizeClass} ${isReaderMode ? '' : 'italic'}`}>{renderEnglishVerse(englishVerses[idx]?.replace(/<[^>]*>?/gm, ''), idx)}</p><div className="hebrew-line text-right border-t border-[var(--color-accent-primary)]/20 pt-4" dir="rtl">{renderHebrewVerse(verse, activeRef.verse ? activeRef.verse - 1 : idx)}</div></div></div></div>))}</div><div className="pt-12 border-t border-[var(--color-accent-primary)]/20 flex justify-center pb-8">{selectedChapter < maxChapters && (<button onClick={() => handleChapterNav('next')} className="group flex items-center gap-4 px-8 py-4 rounded-full bg-[var(--color-accent-primary)]/10 hover:bg-[var(--color-accent-primary)]/20 border border-[var(--color-accent-primary)]/30 hover:border-[var(--color-accent-secondary)] transition-all duration-300"><span className="tech-font text-xs uppercase tracking-[0.3em] text-white">Next Chapter</span><ChevronRightIcon className="w-5 h-5 text-[var(--color-accent-secondary)] group-hover:translate-x-1 transition-transform" /></button>)}</div></div>)}</div></section>
 
-        <section className={getPanelClass('decoder')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><MagnifyingGlassIcon className="w-4 h-4" /> Rhema Scope</h2><div className="window-controls"><button onClick={() => toggleMaximize('decoder')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'decoder' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div><div className="decoder-content p-4 md:p-6 flex-grow overflow-y-auto flex flex-col pb-6"><WordBreakdownPanel selectedWord={selectedWord} journalNote={journalNote} onNoteChange={handleNoteChange} bookName={activeRef.book} chapter={activeRef.chapter} verseScanStatus={selectedWord ? scanStatuses[selectedWord.verseIndex] : 'idle'} /></div></section>
+        <section className={getPanelClass('decoder')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><MagnifyingGlassIcon className="w-4 h-4" /> Rhema Scope</h2><div className="window-controls"><button onClick={() => toggleMaximize('decoder')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'decoder' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div><div className="decoder-content p-4 md:p-6 flex-grow overflow-y-auto flex flex-col pb-6"><WordBreakdownPanel selectedWord={selectedWord} journalNote={journalNote} onNoteChange={handleNoteChange} bookName={activeRef.book} chapter={activeRef.chapter} verseScanStatus={selectedWord ? scanStatuses[selectedWord.verseIndex] : 'idle'} onTriggerExport={() => setIsExportModalOpen(true)} /></div></section>
       </div>
 
       <nav className="md:hidden fixed bottom-6 left-6 right-6 h-16 glass-panel rounded-full flex justify-around items-center z-50 shadow-[0_0_30px_rgba(0,0,0,0.8)] backdrop-blur-xl bg-[#090a20]/90">
@@ -458,6 +467,17 @@ const App: React.FC = () => {
             <div className="p-8 border-t border-white/5 text-center mt-auto md:mt-0 bg-[#050714]"><button onClick={() => setIsSettingsOpen(false)} className="md:hidden w-full electric-gradient py-5 rounded-full text-sm font-bold tracking-widest uppercase mb-4">Close Configurator</button><span className="text-[10px] text-white/20 uppercase tracking-[0.6em]">System Architecture v3.0</span></div>
         </div>
       </div>
+      
+      {/* EXPORT CARD DESIGNER MODAL */}
+      {isExportModalOpen && selectedWord && (
+        <ExportPreviewModal 
+            selectedWord={selectedWord} 
+            bookName={activeRef.book} 
+            chapter={activeRef.chapter} 
+            journalNote={journalNote} 
+            onClose={() => setIsExportModalOpen(false)} 
+        />
+      )}
     </div>
   );
 };
