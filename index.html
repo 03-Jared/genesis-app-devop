@@ -560,6 +560,73 @@
       .archive-item:hover {
          background: rgba(255,255,255,0.05);
       }
+
+      /* Background Swatch Styles */
+      .bg-swatch-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 8px;
+          margin-bottom: 20px;
+      }
+      .bg-swatch {
+          width: 100%;
+          aspect-ratio: 1/1;
+          border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.1);
+          cursor: pointer;
+          transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+          padding: 0;
+      }
+      .bg-swatch:hover {
+          transform: scale(1.1);
+          border-color: rgba(255,255,255,0.5);
+      }
+      .bg-swatch.active-swatch {
+          border-color: var(--color-accent-secondary);
+          box-shadow: 0 0 10px var(--color-accent-secondary);
+          transform: scale(1.1);
+      }
+      .ai-gen-btn {
+          width: 100%;
+          padding: 12px;
+          background: linear-gradient(135deg, #3b00ff 0%, #00d2ff 100%);
+          border: 1px solid rgba(255,255,255,0.2);
+          border-radius: 12px;
+          color: white;
+          font-weight: bold;
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: all 0.3s;
+          margin-bottom: 8px;
+      }
+      .ai-gen-btn:hover:not(:disabled) {
+          box-shadow: 0 0 20px rgba(59, 0, 255, 0.5);
+          transform: translateY(-1px);
+      }
+      .ai-gen-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          filter: grayscale(1);
+      }
+      .control-sublabel {
+          color: #888;
+          font-size: 0.65rem;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin-bottom: 10px;
+          display: block;
+      }
+      .section-divider-horizontal {
+          height: 1px;
+          background: rgba(255,255,255,0.1);
+          margin: 20px 0;
+      }
     </style>
   <script type="importmap">
 {
