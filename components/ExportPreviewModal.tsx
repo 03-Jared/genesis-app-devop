@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { WordData, AiWordAnalysis, LetterDefinition } from '../types';
+import { WordData, AiWordAnalysis, LetterDefinition, SavedCard } from '../types';
 import { DEFAULT_HEBREW_MAP, SOFIT_MAP } from '../constants';
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, BookmarkIcon } from '@heroicons/react/24/outline';
 
 interface ExportPreviewModalProps {
   selectedWord: WordData & { aiDefinition?: AiWordAnalysis };
@@ -9,9 +9,10 @@ interface ExportPreviewModalProps {
   chapter: number;
   onClose: () => void;
   journalNote: string;
+  onSaveCard?: (card: SavedCard) => void;
 }
 
-const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, bookName, chapter, onClose, journalNote }) => {
+const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, bookName, chapter, onClose, journalNote, onSaveCard }) => {
   const [toggles, setToggles] = useState({
     verse: true,
     hebrew: true,
@@ -21,6 +22,7 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
     guided: true
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -57,6 +59,24 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
       console.error(err);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleSaveToCodex = () => {
+    if (onSaveCard && !hasSaved) {
+        const newCard: SavedCard = {
+            id: crypto.randomUUID(),
+            book: bookName,
+            chapter: chapter,
+            verse: selectedWord.verseIndex,
+            wordText: selectedWord.text,
+            wordData: selectedWord,
+            note: journalNote,
+            timestamp: Date.now()
+        };
+        onSaveCard(newCard);
+        setHasSaved(true);
+        setTimeout(() => setHasSaved(false), 2000); // Reset for visual feedback if needed
     }
   };
 
@@ -105,14 +125,24 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
           </div>
 
           <div className="mt-auto flex flex-col gap-3">
-            <button 
-              onClick={handleDownload}
-              disabled={isGenerating}
-              className="electric-gradient py-4 rounded-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
-            >
-              <ArrowDownTrayIcon className="w-5 h-5" />
-              {isGenerating ? 'Generating PNG...' : 'Download Card'}
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+                <button 
+                onClick={handleSaveToCodex}
+                disabled={hasSaved}
+                className={`py-4 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all text-xs font-bold uppercase tracking-wider border ${hasSaved ? 'bg-green-500/20 border-green-500 text-green-500' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}
+                >
+                <BookmarkIcon className="w-5 h-5" />
+                {hasSaved ? 'Saved' : 'Save to Codex'}
+                </button>
+                <button 
+                onClick={handleDownload}
+                disabled={isGenerating}
+                className="electric-gradient py-4 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 text-xs font-bold uppercase tracking-wider text-white"
+                >
+                <ArrowDownTrayIcon className="w-5 h-5" />
+                {isGenerating ? '...' : 'Download'}
+                </button>
+            </div>
             <button onClick={onClose} className="text-[10px] text-white/30 hover:text-white uppercase tracking-widest py-2 transition-colors">
               Cancel & Exit
             </button>

@@ -52,6 +52,17 @@ export interface AiVerseData {
 // Flat structure as per new "Clean Logic" requirements
 export type AiChapterData = Record<string, AiWordAnalysis>;
 
+export interface SavedCard {
+  id: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  wordText: string;
+  wordData: WordData & { aiDefinition?: AiWordAnalysis };
+  note: string;
+  timestamp: number;
+}
+
 // Global augmentation
 declare global {
   interface Window {

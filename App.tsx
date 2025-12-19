@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS, DEFAULT_HEBREW_MAP, SOFIT_MAP } from './constants';
-import { SefariaResponse, WordData, AiChapterData, AiWordAnalysis } from './types';
+import { SefariaResponse, WordData, AiChapterData, AiWordAnalysis, SavedCard } from './types';
 import WordBreakdownPanel from './components/WordBreakdownPanel';
 import ExportPreviewModal from './components/ExportPreviewModal';
 import { 
@@ -19,7 +19,10 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  CursorArrowRaysIcon
+  CursorArrowRaysIcon,
+  BookmarkIcon,
+  TrashIcon,
+  ArrowRightCircleIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -52,6 +55,7 @@ const App: React.FC = () => {
 
   const [scriptureData, setScriptureData] = useState<SefariaResponse | null>(null);
   const [history, setHistory] = useState<WordData[]>([]);
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   
   const [aiData, setAiData] = useState<AiChapterData>({});
   const [scanStatuses, setScanStatuses] = useState<Record<number, 'idle' | 'scanning' | 'complete' | 'error'>>({});
@@ -83,12 +87,17 @@ const App: React.FC = () => {
     return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
   };
 
+  const isMobileSize = () => {
+    return window.innerWidth < 768;
+  }
+
   useEffect(() => {
     const storedUser = localStorage.getItem('genesis_username');
     const storedTheme = localStorage.getItem('genesis_theme');
     const storedReaderMode = localStorage.getItem('genesis_reader_mode');
     const storedFontSize = localStorage.getItem('genesis_font_size');
     const storedHover = localStorage.getItem('genesis_hover_enabled');
+    const storedCards = localStorage.getItem('genesis_saved_cards');
 
     if (storedUser) setUsername(storedUser);
     if (storedTheme && THEMES[storedTheme as keyof typeof THEMES]) {
@@ -97,6 +106,11 @@ const App: React.FC = () => {
     if (storedReaderMode) setIsReaderMode(storedReaderMode === 'true');
     if (storedFontSize) setFontSizeLevel(parseInt(storedFontSize));
     if (storedHover !== null) setIsHoverEnabled(storedHover === 'true');
+    if (storedCards) {
+      try {
+        setSavedCards(JSON.parse(storedCards));
+      } catch (e) { console.error("Failed to load cards", e); }
+    }
 
     fetchScripture();
   }, []);
@@ -117,6 +131,11 @@ const App: React.FC = () => {
     }
     setSelectedVerse(''); 
   }, [selectedBook, selectedChapter]);
+
+  // Save cards to local storage whenever they update
+  useEffect(() => {
+    localStorage.setItem('genesis_saved_cards', JSON.stringify(savedCards));
+  }, [savedCards]);
 
   const handleInitialize = () => {
     if (!username.trim()) return;
@@ -141,6 +160,34 @@ const App: React.FC = () => {
       const newVal = !isHoverEnabled;
       setIsHoverEnabled(newVal);
       localStorage.setItem('genesis_hover_enabled', String(newVal));
+  };
+
+  const handleSaveCard = (cardData: SavedCard) => {
+      setSavedCards(prev => [cardData, ...prev]);
+  };
+
+  const handleDeleteCard = (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      if (window.confirm("Delete this saved design card?")) {
+        setSavedCards(prev => prev.filter(c => c.id !== id));
+      }
+  };
+
+  const handleRestoreCard = (card: SavedCard) => {
+      // 1. Set context
+      setSelectedBook(card.book);
+      setSelectedChapter(card.chapter);
+      setActiveRef({ book: card.book, chapter: card.chapter, verse: card.verse });
+      
+      // 2. Set word data
+      setSelectedWord(card.wordData);
+      setJournalNote(card.note);
+      
+      // 3. Open Modal directly
+      setIsExportModalOpen(true);
+      
+      // Note: We might want to fetch scripture in background if not matching, 
+      // but for viewing the card, the local data is enough.
   };
 
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -278,10 +325,11 @@ const App: React.FC = () => {
   };
 
   const handleWordHover = (e: React.MouseEvent, word: string, verseIndex: number) => {
+      // STRICT Mobile Check: Touch capabilities OR width under 768px
+      if (!isHoverEnabled || isTouchDevice() || isMobileSize()) return;
+
       setHoveredHebrewWord(word);
       setHoveredVerseIndex(verseIndex);
-
-      if (!isHoverEnabled || isTouchDevice()) return;
 
       const popup = document.getElementById("hover-popup");
       if (!popup) return;
@@ -377,6 +425,9 @@ const App: React.FC = () => {
   const englishSizeClass = fontSizeLevel === 0 ? 'text-sm md:text-lg' : fontSizeLevel === 1 ? 'text-base md:text-xl' : 'text-lg md:text-2xl';
   const verseNumSizeClass = fontSizeLevel === 0 ? 'text-[10px]' : fontSizeLevel === 1 ? 'text-xs' : 'text-sm';
   const availableVerseCount = BIBLE_VERSE_COUNTS[selectedBook]?.[selectedChapter - 1] || 176;
+  
+  // Filter saved cards by selected book
+  const filteredCards = savedCards.filter(card => card.book === selectedBook);
 
   if (showLanding) {
     return (
@@ -404,7 +455,96 @@ const App: React.FC = () => {
       <header className="hidden md:flex justify-between items-center py-2 px-4 border-b border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 rounded-2xl mb-2 backdrop-blur-sm"><h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}</h1><div className="flex items-center gap-4">{Object.values(scanStatuses).some(s => s === 'scanning') && (<div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]"><span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>Gemini Uplink Active</div>)}<div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">System Online</div></div></header>
 
       <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 relative max-w-[1920px] mx-auto w-full h-full">
-        <section className={getPanelClass('nav')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><Bars3Icon className="w-4 h-4" /> Codex</h2><div className="window-controls"><button onClick={() => setIsSettingsOpen(true)} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors"><Cog6ToothIcon className="w-4 h-4" /></button><button onClick={() => toggleMaximize('nav')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'nav' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div><div className="sidebar-content p-4 md:p-6 flex-grow overflow-y-auto space-y-8 pb-24 md:pb-6"><div className="space-y-5"><div className="space-y-2"><label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Book</label><div className="relative"><select value={selectedBook} onChange={(e) => setSelectedBook(e.target.value)} className="w-full appearance-none glass-pill px-5 py-3 text-sm cursor-pointer">{BIBLE_BOOKS.map(b => <option key={b} value={b} className="bg-[#090a20] text-slate-200">{b}</option>)}</select><div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[var(--color-accent-secondary)]"><ChevronDownIcon className="w-4 h-4" /></div></div></div><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Chapter</label><div className="relative"><select value={selectedChapter} onChange={(e) => setSelectedChapter(parseInt(e.target.value))} className="w-full appearance-none glass-pill px-5 py-3 text-sm cursor-pointer text-center">{Array.from({length: maxChapters}, (_, i) => i + 1).map(num => (<option key={num} value={num} className="bg-[#090a20] text-slate-200">{num}</option>))}</select><div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--color-accent-secondary)]"><ChevronDownIcon className="w-3 h-3" /></div></div></div><div className="space-y-2"><label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Verse</label><div className="relative"><select value={selectedVerse} onChange={(e) => setSelectedVerse(e.target.value)} className="w-full appearance-none glass-pill px-5 py-3 text-sm cursor-pointer text-center"><option value="" className="bg-[#090a20] text-slate-200">All</option>{Array.from({length: availableVerseCount}, (_, i) => i + 1).map(num => (<option key={num} value={num} className="bg-[#090a20] text-slate-200">{num}</option>))}</select><div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--color-accent-secondary)]"><ChevronDownIcon className="w-3 h-3" /></div></div></div></div><button onClick={() => fetchScripture()} disabled={loading} className="w-full electric-gradient py-3 rounded-full text-xs uppercase tracking-widest font-bold flex items-center justify-center gap-2 mt-4">{loading ? <span className="animate-spin">⟳</span> : <MagnifyingGlassIcon className="w-4 h-4" />}Load Scripture</button></div><div className="pt-6 border-t border-[var(--color-accent-primary)]/20"><div className="relative w-full"><div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-[var(--color-accent-secondary)]"><ClockIcon className="w-4 h-4" /></div><select onChange={(e) => { const idx = parseInt(e.target.value); if (!isNaN(idx) && history[idx]) { setSelectedWord(history[idx]); setActiveMobilePanel('decoder'); } }} value="" className="w-full appearance-none glass-pill pl-11 pr-10 py-3 text-xs uppercase tracking-wider font-semibold cursor-pointer text-ellipsis text-[#a0a8c0] hover:text-white transition-colors focus:border-[var(--color-accent-secondary)]"><option value="" disabled>Recent Study History</option>{history.length === 0 ? (<option disabled>No history yet</option>) : (history.map((h, i) => (<option key={i} value={i} className="bg-[#090a20] text-slate-200 normal-case">{h.cleanText} (Vs. {h.verseIndex + 1})</option>)))}</select><div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[var(--color-accent-secondary)]"><ChevronDownIcon className="w-4 h-4" /></div></div></div></div></section>
+        <section className={getPanelClass('nav')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><Bars3Icon className="w-4 h-4" /> Codex</h2><div className="window-controls"><button onClick={() => setIsSettingsOpen(true)} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors"><Cog6ToothIcon className="w-4 h-4" /></button><button onClick={() => toggleMaximize('nav')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'nav' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div>
+        
+        <div className="sidebar-content p-4 md:p-6 flex-grow overflow-y-auto space-y-6 pb-24 md:pb-6">
+            {/* Top Navigation Block */}
+            <div className="space-y-5">
+                <div className="space-y-2">
+                    <label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Book</label>
+                    <div className="relative">
+                        <select value={selectedBook} onChange={(e) => setSelectedBook(e.target.value)} className="w-full appearance-none glass-pill px-5 py-3 text-sm cursor-pointer border-[#333] hover:border-[var(--color-accent-secondary)] focus:border-[var(--color-accent-secondary)]">
+                            {BIBLE_BOOKS.map(b => <option key={b} value={b} className="bg-[#090a20] text-slate-200">{b}</option>)}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[var(--color-accent-secondary)]"><ChevronDownIcon className="w-4 h-4" /></div>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Chapter</label>
+                        <div className="relative">
+                            <select value={selectedChapter} onChange={(e) => setSelectedChapter(parseInt(e.target.value))} className="w-full appearance-none glass-pill px-5 py-3 text-sm cursor-pointer text-center">
+                                {Array.from({length: maxChapters}, (_, i) => i + 1).map(num => (<option key={num} value={num} className="bg-[#090a20] text-slate-200">{num}</option>))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--color-accent-secondary)]"><ChevronDownIcon className="w-3 h-3" /></div>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Verse</label>
+                        <div className="relative">
+                            <select value={selectedVerse} onChange={(e) => setSelectedVerse(e.target.value)} className="w-full appearance-none glass-pill px-5 py-3 text-sm cursor-pointer text-center">
+                                <option value="" className="bg-[#090a20] text-slate-200">All</option>
+                                {Array.from({length: availableVerseCount}, (_, i) => i + 1).map(num => (<option key={num} value={num} className="bg-[#090a20] text-slate-200">{num}</option>))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[var(--color-accent-secondary)]"><ChevronDownIcon className="w-3 h-3" /></div>
+                        </div>
+                    </div>
+                </div>
+                <button onClick={() => fetchScripture()} disabled={loading} className="w-full electric-gradient py-3 rounded-full text-xs uppercase tracking-widest font-bold flex items-center justify-center gap-2 mt-4 shadow-lg shadow-[var(--color-accent-primary)]/20 hover:shadow-[var(--color-accent-secondary)]/40 transition-shadow">
+                    {loading ? <span className="animate-spin">⟳</span> : <MagnifyingGlassIcon className="w-4 h-4" />}
+                    Load Scripture
+                </button>
+            </div>
+
+            {/* Neural Archives Section */}
+            <div className="pt-6 border-t border-[var(--color-accent-primary)]/20 flex flex-col gap-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <BookmarkIcon className="w-4 h-4 text-[var(--color-accent-secondary)]" />
+                    <span className="text-xs uppercase tracking-widest font-bold text-white/70">Neural Archives: {selectedBook}</span>
+                </div>
+
+                {filteredCards.length === 0 ? (
+                    <div className="text-center py-8 border border-dashed border-white/10 rounded-xl bg-white/5">
+                        <ClockIcon className="w-8 h-8 text-white/10 mx-auto mb-2" />
+                        <p className="text-[10px] text-white/30 uppercase tracking-widest">No saved cards for {selectedBook}</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {filteredCards.map((card) => (
+                            <div 
+                                key={card.id} 
+                                onClick={() => handleRestoreCard(card)}
+                                className="group relative archive-item p-3 rounded-lg bg-[#050714] border border-white/5 hover:border-[var(--color-accent-secondary)] cursor-pointer transition-all duration-300 hover:shadow-[0_0_15px_rgba(0,210,255,0.1)] hover:-translate-y-1"
+                            >
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded bg-[var(--color-accent-primary)]/10 flex items-center justify-center border border-[var(--color-accent-primary)]/20 text-[var(--color-accent-secondary)] font-bold text-xs">
+                                           {card.chapter}:{card.verse + 1}
+                                        </div>
+                                        <div>
+                                            <div className="hebrew-font text-lg text-white leading-none mb-1">{card.wordText}</div>
+                                            <div className="text-[9px] text-white/40 tech-font uppercase tracking-wider">{new Date(card.timestamp).toLocaleDateString()}</div>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={(e) => handleDeleteCard(e, card.id)}
+                                        className="text-white/20 hover:text-red-400 p-1 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                {card.note && (
+                                    <div className="mt-2 text-[10px] text-white/50 truncate border-t border-white/5 pt-2 italic">
+                                        "{card.note}"
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+        </section>
 
         <section className={getPanelClass('reader')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><BookOpenIcon className="w-4 h-4" /> Scripture</h2><div className="window-controls"><div className="flex items-center gap-1 border-r border-[var(--color-accent-primary)]/20 pr-2 mr-2"><button onClick={() => handleChapterNav('prev')} disabled={selectedChapter <= 1} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronLeftIcon className="w-4 h-4" /></button><span className="text-[10px] font-mono text-[var(--color-accent-secondary)] w-6 text-center">{selectedChapter}</span><button onClick={() => handleChapterNav('next')} disabled={selectedChapter >= maxChapters} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronRightIcon className="w-4 h-4" /></button></div><button onClick={toggleReaderMode} className={`transition-colors p-1 ${isReaderMode ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isReaderMode ? "Reader Mode Active" : "Interlinear Mode"}><BookOpenIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={cycleFontSize} className="font-serif font-bold text-xs md:text-sm text-[#a0a8c0] hover:text-white transition-colors flex items-end leading-none" title="Toggle Font Size">T<span className="text-[0.8em]">t</span></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={toggleHover} className={`transition-colors p-1 ${isHoverEnabled ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isHoverEnabled ? "Disable Hover Decoder" : "Enable Hover Decoder"}><CursorArrowRaysIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={() => toggleMaximize('reader')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'reader' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div><div className="reader-content flex-1 overflow-y-auto p-4 md:p-12 relative scroll-smooth">{loading && (<div className="h-full flex flex-col items-center justify-center gap-6"><div className="w-16 h-16 border-2 border-[var(--color-accent-secondary)] border-t-transparent rounded-full animate-spin"></div><span className="tech-font text-xs uppercase tracking-[0.3em] text-[var(--color-accent-secondary)] animate-pulse">Receiving Transmission...</span></div>)}{!scriptureData && !loading && (<div className="h-full flex flex-col items-center justify-center text-[#a0a8c0] opacity-50"><BookOpenIcon className="w-20 h-20 mb-6 stroke-1 text-[var(--color-accent-primary)]" /><p className="tech-font text-sm uppercase tracking-[0.2em]">Select text to begin</p></div>)}{scriptureData && !loading && (<div className="max-w-4xl mx-auto space-y-16 animate-fadeIn pb-32"><div className="text-center"><h2 className="text-2xl md:text-6xl font-normal text-white mb-4 cinzel-font tracking-widest cyan-glow">{activeRef.book} <span className="text-white ml-3">{activeRef.chapter}{activeRef.verse ? `:${activeRef.verse}` : ''}</span></h2><div className="h-[1px] w-32 md:w-48 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent mx-auto opacity-70"></div></div><div id="readerContent" className={`space-y-6 md:space-y-8 ${isReaderMode ? 'mode-reader' : ''}`}>{hebrewVerses.map((verse, idx) => (<div key={idx} className="verse-block group relative p-4 md:p-8 border border-white/0 hover:border-[var(--color-accent-secondary)]/20 hover:bg-[var(--color-accent-primary)]/5 transition-all duration-500 rounded-2xl"><div className="flex gap-3 md:gap-4 items-start"><div className="flex-shrink-0 pt-1.5 md:pt-2 flex items-center"><button id={`btn-${idx}`} className={`ai-scan-btn ${scanStatuses[idx] === 'scanning' ? 'scanning-pulse' : ''} ${scanStatuses[idx] === 'complete' ? 'scan-success' : ''}`} onClick={() => scanVerse(idx, verse, englishVerses[idx]?.replace(/<[^>]*>?/gm, ''))} title="Analyze Verse with Gemini AI" disabled={scanStatuses[idx] === 'scanning' || window.IS_SCANNING}>{scanStatuses[idx] === 'scanning' ? '⏳' : scanStatuses[idx] === 'complete' ? '✅' : scanStatuses[idx] === 'error' ? '⚠️' : '⚡'}</button><span className={`${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10 h-fit`}>{activeRef.verse ? activeRef.verse : idx + 1}</span></div><div className="flex-grow"><p className={`english-line text-[#a0a8c0] font-light font-sans leading-loose mb-6 group-hover:text-white transition-colors ${englishSizeClass} ${isReaderMode ? '' : 'italic'}`}>{renderEnglishVerse(englishVerses[idx]?.replace(/<[^>]*>?/gm, ''), idx)}</p><div className="hebrew-line text-right border-t border-[var(--color-accent-primary)]/20 pt-4" dir="rtl">{renderHebrewVerse(verse, activeRef.verse ? activeRef.verse - 1 : idx)}</div></div></div></div>))}</div><div className="pt-12 border-t border-[var(--color-accent-primary)]/20 flex justify-center pb-8">{selectedChapter < maxChapters && (<button onClick={() => handleChapterNav('next')} className="group flex items-center gap-4 px-8 py-4 rounded-full bg-[var(--color-accent-primary)]/10 hover:bg-[var(--color-accent-primary)]/20 border border-[var(--color-accent-primary)]/30 hover:border-[var(--color-accent-secondary)] transition-all duration-300"><span className="tech-font text-xs uppercase tracking-[0.3em] text-white">Next Chapter</span><ChevronRightIcon className="w-5 h-5 text-[var(--color-accent-secondary)] group-hover:translate-x-1 transition-transform" /></button>)}</div></div>)}</div></section>
 
@@ -476,6 +616,7 @@ const App: React.FC = () => {
             chapter={activeRef.chapter} 
             journalNote={journalNote} 
             onClose={() => setIsExportModalOpen(false)} 
+            onSaveCard={handleSaveCard}
         />
       )}
     </div>
