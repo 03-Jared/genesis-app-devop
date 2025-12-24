@@ -2,7 +2,7 @@
 import React from 'react';
 import { WordData, LetterDefinition, AiWordAnalysis } from '../types';
 import { DEFAULT_HEBREW_MAP, SOFIT_MAP } from '../constants';
-import { SwatchIcon, CpuChipIcon, ArrowRightIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { SwatchIcon, CpuChipIcon, ArrowRightIcon, InformationCircleIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline';
 
 interface WordBreakdownPanelProps {
   selectedWord: (WordData & { aiDefinition?: AiWordAnalysis }) | null;
@@ -37,12 +37,14 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   let definition = "Select a word...";
   let morphology = "--";
   let root = "--";
+  let transliteration = "";
   
   if (selectedWord) {
       if (hasData) {
           definition = selectedWord.aiDefinition?.definition || "";
           root = selectedWord.aiDefinition?.root || "";
           morphology = selectedWord.aiDefinition?.morphology || "Root analysis complete";
+          transliteration = selectedWord.aiDefinition?.transliteration || "";
       } else {
           if (verseScanStatus === 'scanning') {
               definition = "Analyzing context...";
@@ -59,6 +61,15 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
 
   const strictCleanText = selectedWord ? getCleanHebrew(selectedWord.text) : '';
   const breakdown = selectedWord ? getLetterBreakdown(strictCleanText) : [];
+
+  const handlePlayAudio = () => {
+      if (!selectedWord) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(selectedWord.cleanText);
+      utterance.lang = "he-IL"; 
+      utterance.rate = 0.8; 
+      window.speechSynthesis.speak(utterance);
+  };
 
   return (
     <div className="flex flex-col animate-fadeIn relative pb-8">
@@ -85,9 +96,28 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
              </div>
 
              <div className="flex flex-col md:flex-row md:flex-wrap md:items-baseline gap-2 md:gap-6 mt-2">
-                <span className="hebrew-text text-5xl md:text-6xl text-[var(--color-accent-secondary)] drop-shadow-[0_0_15px_var(--color-accent-secondary)] leading-tight max-w-full break-words">
-                    {selectedWord ? selectedWord.text : "--"}
-                </span>
+                <div className="flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-3">
+                        <span className="hebrew-text text-5xl md:text-6xl text-[var(--color-accent-secondary)] drop-shadow-[0_0_15px_var(--color-accent-secondary)] leading-tight max-w-full break-words">
+                            {selectedWord ? selectedWord.text : "--"}
+                        </span>
+                        {selectedWord && (
+                            <button 
+                                onClick={handlePlayAudio}
+                                className="p-2 rounded-full border border-white/10 hover:border-[var(--color-accent-secondary)] hover:bg-[var(--color-accent-secondary)]/10 text-white/60 hover:text-[var(--color-accent-secondary)] transition-all"
+                                title="Listen to Hebrew Pronunciation"
+                            >
+                                <SpeakerWaveIcon className="w-5 h-5" />
+                            </button>
+                        )}
+                    </div>
+                    {transliteration && (
+                        <span className="text-lg text-[#00ff88] font-mono tracking-wide italic opacity-90">
+                            {transliteration}
+                        </span>
+                    )}
+                </div>
+                
                 {selectedWord && (
                   <div className="flex flex-col items-start gap-2 flex-1 min-w-[200px]">
                      <span className="text-xs uppercase tracking-widest text-white/50">{morphology}</span>

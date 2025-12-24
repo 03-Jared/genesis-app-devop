@@ -68,13 +68,22 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
                   {letter.emoji}
                 </span>
               </div>
-              <div>
-                <h3 className="text-2xl md:text-3xl text-white font-bold mb-1 font-serif">
-                  <span className="text-[var(--color-accent-secondary)] mr-3 hebrew-font font-bold">
-                    {letter.char}
-                  </span>
-                  {letter.name}
-                </h3>
+              <div className="flex-1">
+                <div className="flex justify-between items-start w-full">
+                    <div>
+                        <h3 className="text-2xl md:text-3xl text-white font-bold mb-1 font-serif">
+                        <span className="text-[var(--color-accent-secondary)] mr-3 hebrew-font font-bold">
+                            {letter.char}
+                        </span>
+                        {letter.name}
+                        </h3>
+                        {letter.pronunciation && (
+                            <span className="inline-block px-2 py-1 bg-[#0a0a14] border border-white/20 rounded text-[var(--color-accent-secondary)] text-xs font-mono tracking-wide mb-2">
+                                🔊 {letter.pronunciation}
+                            </span>
+                        )}
+                    </div>
+                </div>
                 <p className="text-[#a0a8c0] italic text-sm md:text-base font-light">
                   {letter.summary}
                 </p>

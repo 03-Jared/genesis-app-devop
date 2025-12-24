@@ -5,6 +5,7 @@ export interface LetterDefinition {
   pictograph: string;
   meaning: string;
   emoji: string;
+  pronunciation?: string; // New field for static dictionary
 }
 
 export type LetterMap = Record<string, LetterDefinition>;
@@ -41,6 +42,7 @@ export interface AiWordAnalysis {
   definition: string;
   english_match: string;
   root: string;
+  transliteration?: string; // New field for AI analysis
   morphology?: string;
   reflection?: string;
 }

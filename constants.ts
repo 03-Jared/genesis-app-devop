@@ -136,6 +136,7 @@ export const LETTER_DETAILS = [
       char: 'א',
       name: 'Aleph',
       emoji: '🐮',
+      pronunciation: "Ah-lef (Sounds like 'Olive')",
       summary: 'Ox Head: Strength, Leader, First',
       fullDetails: `
           <p>Aleph is the first letter of the Aleph-Bet. In its ancient pictographic form, it represents an <b>ox head</b>.</p>
@@ -147,6 +148,7 @@ export const LETTER_DETAILS = [
       char: 'ב',
       name: 'Bet',
       emoji: '⛺',
+      pronunciation: "Bet (Sounds like 'Bed' with a T)",
       summary: 'Tent Floorplan: House, In, Inside',
       fullDetails: `
           <p>Bet is the picture of a nomadic tent floorplan. It represents the concept of a <b>house, dwelling, or household</b>.</p>
@@ -158,6 +160,7 @@ export const LETTER_DETAILS = [
       char: 'ג',
       name: 'Gimel',
       emoji: '🐫',
+      pronunciation: "Gi-mel (Hard G like 'Give')",
       summary: 'Camel: To Lift Up, Pride, Benefit',
       fullDetails: `
           <p>Gimel is represented by the <b>camel</b>, or specifically the camel's neck/head. The camel was a beast of burden that lifted up and carried goods.</p>
@@ -169,6 +172,7 @@ export const LETTER_DETAILS = [
       char: 'ד',
       name: 'Dalet',
       emoji: '🚪',
+      pronunciation: "Dah-let (Sounds like 'Doll' + 'et')",
       summary: 'Door: Path, Enter, Move',
       fullDetails: `
           <p>Dalet pictographically represents a <b>tent door</b>. It signifies the entrance, movement, or a pathway.</p>
@@ -180,6 +184,7 @@ export const LETTER_DETAILS = [
       char: 'ה',
       name: 'Hei',
       emoji: '🧘',
+      pronunciation: "Hay (Sounds like 'Hey')",
       summary: 'Man with Arms Raised: Behold, Reveal, Breath',
       fullDetails: `
           <p>Hei shows a person with arms raised, often shouting "Hey!" or "Behold!". It represents <b>revelation, breath, and divine spirit</b>.</p>
@@ -191,6 +196,7 @@ export const LETTER_DETAILS = [
       char: 'ו',
       name: 'Vav',
       emoji: '🪝',
+      pronunciation: "Vahv (Rhymes with 'Love' or 'Glove')",
       summary: 'Tent Peg: Add, Secure, Hook',
       fullDetails: `
           <p>Vav is a <b>tent peg or nail</b> used to secure the tent. Its function is to join things together.</p>
@@ -202,6 +208,7 @@ export const LETTER_DETAILS = [
       char: 'ז',
       name: 'Zayin',
       emoji: '⚔️',
+      pronunciation: "Zah-yin (Rhymes with 'Lion')",
       summary: 'Mattock/Weapon: Cut, Food, Nourish',
       fullDetails: `
           <p>Zayin resembles a <b>mattock or agricultural weapon</b>. It implies cutting, harvesting, or defending.</p>
@@ -213,6 +220,7 @@ export const LETTER_DETAILS = [
       char: 'ח',
       name: 'Chet',
       emoji: '🚧',
+      pronunciation: "Khet (Guttural 'CH' like Bach)",
       summary: 'Tent Wall: Separate, Protect, Life',
       fullDetails: `
           <p>Chet is the picture of a <b>tent wall</b> or fence. It signifies separation, protection, and a private enclosure.</p>
@@ -224,6 +232,7 @@ export const LETTER_DETAILS = [
       char: 'ט',
       name: 'Tet',
       emoji: '🧺',
+      pronunciation: "Tet (Rhymes with 'Set')",
       summary: 'Basket/Snake: Surround, Contain, Twist',
       fullDetails: `
           <p>Tet represents a <b>basket</b> or a coiling snake. It signifies surrounding, containing, or twisting.</p>
@@ -235,6 +244,7 @@ export const LETTER_DETAILS = [
       char: 'י',
       name: 'Yod',
       emoji: '💪',
+      pronunciation: "Yod (Rhymes with 'Road' or 'Code')",
       summary: 'Arm and Hand: Work, Throw, Worship',
       fullDetails: `
           <p>Yod is the <b>closed hand or arm</b>. It represents work, throwing, creating, and deed.</p>
@@ -246,6 +256,7 @@ export const LETTER_DETAILS = [
       char: 'כ',
       name: 'Kaf',
       emoji: '✋',
+      pronunciation: "Kaf (Sounds like 'Cough')",
       summary: 'Open Palm: Bend, Open, Allow',
       fullDetails: `
           <p>Kaf is the <b>open palm</b> or the hollow of the hand. It represents bending, taming, or allowing.</p>
@@ -257,6 +268,7 @@ export const LETTER_DETAILS = [
       char: 'ל',
       name: 'Lamed',
       emoji: '🦯',
+      pronunciation: "Lah-med (Rhymes with 'Bed')",
       summary: 'Shepherd Staff: Teach, Yoke, Authority',
       fullDetails: `
           <p>Lamed is a <b>shepherd's staff</b>. It represents authority, teaching, urging, and direction.</p>
@@ -268,6 +280,7 @@ export const LETTER_DETAILS = [
       char: 'מ',
       name: 'Mem',
       emoji: '🌊',
+      pronunciation: "Mem (Rhymes with 'Them')",
       summary: 'Water: Chaos, Mighty, Unknown',
       fullDetails: `
           <p>Mem is the picture of <b>waves of water</b>. It represents massive liquid, chaos, or the unknown deep.</p>
@@ -279,6 +292,7 @@ export const LETTER_DETAILS = [
       char: 'נ',
       name: 'Nun',
       emoji: '🌱',
+      pronunciation: "Noon (Sounds like 'Noon')",
       summary: 'Seed/Sprout: Life, Heir, Continue',
       fullDetails: `
           <p>Nun represents a <b>seed or fish</b> darting through water. It signifies life, activity, and continuation.</p>
@@ -290,6 +304,7 @@ export const LETTER_DETAILS = [
       char: 'ס',
       name: 'Samekh',
       emoji: '🪵',
+      pronunciation: "Sah-mekh (Guttural 'KH' at end)",
       summary: 'Prop/Support: Turn, Protect, Grab',
       fullDetails: `
           <p>Samekh is a <b>prop or pillar</b> used for support. It also resembles a thorn that grabs hold.</p>
@@ -301,6 +316,7 @@ export const LETTER_DETAILS = [
       char: 'ע',
       name: 'Ayin',
       emoji: '👁️',
+      pronunciation: "Ah-yin (Sounds like 'Eye-in')",
       summary: 'Eye: Watch, Know, Experience',
       fullDetails: `
           <p>Ayin is the <b>eye</b>. It signifies seeing, watching, knowing, and experiencing.</p>
@@ -312,6 +328,7 @@ export const LETTER_DETAILS = [
       char: 'פ',
       name: 'Pe',
       emoji: '👄',
+      pronunciation: "Pay (Sounds like 'Pay')",
       summary: 'Mouth: Speak, Blow, Edge',
       fullDetails: `
           <p>Pe is the <b>mouth</b>. It represents speaking, blowing, and opening.</p>
@@ -323,6 +340,7 @@ export const LETTER_DETAILS = [
       char: 'צ',
       name: 'Tsade',
       emoji: '🎣',
+      pronunciation: "Tsah-deh (Sounds like 'Pizza-day')",
       summary: 'Fishhook/Man on Side: Hunt, Desire, Trail',
       fullDetails: `
           <p>Tsade represents a <b>fishhook</b> or a man lying on his side. It signifies hunting, chasing, or desiring.</p>
@@ -334,6 +352,7 @@ export const LETTER_DETAILS = [
       char: 'ק',
       name: 'Qof',
       emoji: '🌅',
+      pronunciation: "Kof (Sounds like 'Cough' but deeper)",
       summary: 'Sun on Horizon/Needle Eye: Circle, Time, Behind',
       fullDetails: `
           <p>Qof represents the <b>sun on the horizon</b> or the back of the head. It signifies a circle, revolution of time, or what is behind.</p>
@@ -345,6 +364,7 @@ export const LETTER_DETAILS = [
       char: 'ר',
       name: 'Resh',
       emoji: '👤',
+      pronunciation: "Resh (Rhymes with 'Mesh')",
       summary: 'Head of Man: First, Top, Beginning',
       fullDetails: `
           <p>Resh is the <b>head of a person</b>. It represents the head, the top, the first, or the beginning.</p>
@@ -356,6 +376,7 @@ export const LETTER_DETAILS = [
       char: 'ש',
       name: 'Shin',
       emoji: '🦷',
+      pronunciation: "Sheen (Sounds like 'Sheen')",
       summary: 'Teeth: Consume, Destroy, Sharp',
       fullDetails: `
           <p>Shin represents <b>two front teeth</b>. It signifies consuming, destroying, sharp, or pressing.</p>
@@ -367,6 +388,7 @@ export const LETTER_DETAILS = [
       char: 'ת',
       name: 'Tav',
       emoji: '✝️',
+      pronunciation: "Tahv (Rhymes with 'Halve')",
       summary: 'Crossed Sticks: Mark, Sign, Covenant',
       fullDetails: `
           <p>Tav is the picture of <b>crossed sticks</b>. It represents a mark, a sign, a signal, or a monument.</p>

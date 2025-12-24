@@ -218,6 +218,7 @@ const App: React.FC = () => {
     {
       "definition": "Detailed translation/meaning",
       "root": "Hebrew root characters",
+      "transliteration": "Phonetic reading in English (e.g. 'Bereshit')",
       "english_match": "The specific word from the context string that translates this word",
       "morphology": "Grammar details (e.g. Noun, Masculine, Singular)",
       "reflection": "A 1-2 sentence deep spiritual insight based on the word and its pictographic components"
