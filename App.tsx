@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS, DEFAULT_HEBREW_MAP, SOFIT_MAP } from './constants';
 import { SefariaResponse, WordData, AiChapterData, AiWordAnalysis, SavedCard } from './types';
 import WordBreakdownPanel from './components/WordBreakdownPanel';
 import ExportPreviewModal from './components/ExportPreviewModal';
+import LetterDictionary from './components/LetterDictionary'; // Import the new component
 import { 
   BookOpenIcon, 
   MagnifyingGlassIcon, 
@@ -22,7 +24,8 @@ import {
   CursorArrowRaysIcon,
   BookmarkIcon,
   TrashIcon,
-  ArrowRightCircleIcon
+  ArrowRightCircleIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -75,7 +78,9 @@ const App: React.FC = () => {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  
+  const [isDictionaryOpen, setIsDictionaryOpen] = useState(false); 
+  const [dictionaryTargetChar, setDictionaryTargetChar] = useState<string | null>(null);
+
   const [settings, setSettings] = useState({
     theme: 'cyan' as keyof typeof THEMES,
     glowFactor: 100, 
@@ -174,20 +179,17 @@ const App: React.FC = () => {
   };
 
   const handleRestoreCard = (card: SavedCard) => {
-      // 1. Set context
       setSelectedBook(card.book);
       setSelectedChapter(card.chapter);
       setActiveRef({ book: card.book, chapter: card.chapter, verse: card.verse });
-      
-      // 2. Set word data
       setSelectedWord(card.wordData);
       setJournalNote(card.note);
-      
-      // 3. Open Modal directly
       setIsExportModalOpen(true);
-      
-      // Note: We might want to fetch scripture in background if not matching, 
-      // but for viewing the card, the local data is enough.
+  };
+
+  const handleOpenDictionary = (char?: string) => {
+      setDictionaryTargetChar(char || null);
+      setIsDictionaryOpen(true);
   };
 
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -204,7 +206,6 @@ const App: React.FC = () => {
     setScanStatuses(prev => ({ ...prev, [verseIndex]: 'scanning' }));
     
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    // Added reflection to the prompt
     const promptText = `
     Analyze the following Hebrew verse: "${hebrewText}"
     Context (English Translation): "${englishText}"
@@ -253,7 +254,6 @@ const App: React.FC = () => {
         setAiData(prev => ({ ...prev, ...verseData }));
         setScanStatuses(prev => ({ ...prev, [verseIndex]: 'complete' }));
         
-        // Update selected word if it matches current scan
         if (selectedWord && selectedWord.verseIndex === verseIndex) {
             const updatedAnalysis = verseData[selectedWord.text];
             if (updatedAnalysis) {
@@ -325,7 +325,6 @@ const App: React.FC = () => {
   };
 
   const handleWordHover = (e: React.MouseEvent, word: string, verseIndex: number) => {
-      // STRICT Mobile Check: Touch capabilities OR width under 768px
       if (!isHoverEnabled || isTouchDevice() || isMobileSize()) return;
 
       setHoveredHebrewWord(word);
@@ -426,7 +425,6 @@ const App: React.FC = () => {
   const verseNumSizeClass = fontSizeLevel === 0 ? 'text-[10px]' : fontSizeLevel === 1 ? 'text-xs' : 'text-sm';
   const availableVerseCount = BIBLE_VERSE_COUNTS[selectedBook]?.[selectedChapter - 1] || 176;
   
-  // Filter saved cards by selected book
   const filteredCards = savedCards.filter(card => card.book === selectedBook);
 
   if (showLanding) {
@@ -452,13 +450,18 @@ const App: React.FC = () => {
   return (
     <div className="h-[100dvh] w-full cosmic-bg text-[#a0a8c0] overflow-hidden flex flex-col p-0 md:p-6 gap-0 md:gap-6 relative">
       <div id="hover-popup"></div>
+      
+      {/* DICTIONARY OVERLAY */}
+      {isDictionaryOpen && (
+        <LetterDictionary onClose={() => setIsDictionaryOpen(false)} targetChar={dictionaryTargetChar} />
+      )}
+
       <header className="hidden md:flex justify-between items-center py-2 px-4 border-b border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 rounded-2xl mb-2 backdrop-blur-sm"><h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}</h1><div className="flex items-center gap-4">{Object.values(scanStatuses).some(s => s === 'scanning') && (<div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]"><span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>Gemini Uplink Active</div>)}<div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">System Online</div></div></header>
 
       <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 relative max-w-[1920px] mx-auto w-full h-full">
         <section className={getPanelClass('nav')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><Bars3Icon className="w-4 h-4" /> Codex</h2><div className="window-controls"><button onClick={() => setIsSettingsOpen(true)} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors"><Cog6ToothIcon className="w-4 h-4" /></button><button onClick={() => toggleMaximize('nav')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'nav' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div>
         
         <div className="sidebar-content p-4 md:p-6 flex-grow overflow-y-auto space-y-6 pb-24 md:pb-6">
-            {/* Top Navigation Block */}
             <div className="space-y-5">
                 <div className="space-y-2">
                     <label className="text-[10px] uppercase text-[var(--color-accent-secondary)] tracking-wider font-semibold ml-2">Book</label>
@@ -496,7 +499,6 @@ const App: React.FC = () => {
                 </button>
             </div>
 
-            {/* Neural Archives Section */}
             <div className="pt-6 border-t border-[var(--color-accent-primary)]/20 flex flex-col gap-4">
                 <div className="flex items-center gap-2 mb-2">
                     <BookmarkIcon className="w-4 h-4 text-[var(--color-accent-secondary)]" />
@@ -548,7 +550,45 @@ const App: React.FC = () => {
 
         <section className={getPanelClass('reader')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><BookOpenIcon className="w-4 h-4" /> Scripture</h2><div className="window-controls"><div className="flex items-center gap-1 border-r border-[var(--color-accent-primary)]/20 pr-2 mr-2"><button onClick={() => handleChapterNav('prev')} disabled={selectedChapter <= 1} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronLeftIcon className="w-4 h-4" /></button><span className="text-[10px] font-mono text-[var(--color-accent-secondary)] w-6 text-center">{selectedChapter}</span><button onClick={() => handleChapterNav('next')} disabled={selectedChapter >= maxChapters} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronRightIcon className="w-4 h-4" /></button></div><button onClick={toggleReaderMode} className={`transition-colors p-1 ${isReaderMode ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isReaderMode ? "Reader Mode Active" : "Interlinear Mode"}><BookOpenIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={cycleFontSize} className="font-serif font-bold text-xs md:text-sm text-[#a0a8c0] hover:text-white transition-colors flex items-end leading-none" title="Toggle Font Size">T<span className="text-[0.8em]">t</span></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={toggleHover} className={`transition-colors p-1 ${isHoverEnabled ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isHoverEnabled ? "Disable Hover Decoder" : "Enable Hover Decoder"}><CursorArrowRaysIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={() => toggleMaximize('reader')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'reader' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div><div className="reader-content flex-1 overflow-y-auto p-4 md:p-12 relative scroll-smooth">{loading && (<div className="h-full flex flex-col items-center justify-center gap-6"><div className="w-16 h-16 border-2 border-[var(--color-accent-secondary)] border-t-transparent rounded-full animate-spin"></div><span className="tech-font text-xs uppercase tracking-[0.3em] text-[var(--color-accent-secondary)] animate-pulse">Receiving Transmission...</span></div>)}{!scriptureData && !loading && (<div className="h-full flex flex-col items-center justify-center text-[#a0a8c0] opacity-50"><BookOpenIcon className="w-20 h-20 mb-6 stroke-1 text-[var(--color-accent-primary)]" /><p className="tech-font text-sm uppercase tracking-[0.2em]">Select text to begin</p></div>)}{scriptureData && !loading && (<div className="max-w-4xl mx-auto space-y-16 animate-fadeIn pb-32"><div className="text-center"><h2 className="text-2xl md:text-6xl font-normal text-white mb-4 cinzel-font tracking-widest cyan-glow">{activeRef.book} <span className="text-white ml-3">{activeRef.chapter}{activeRef.verse ? `:${activeRef.verse}` : ''}</span></h2><div className="h-[1px] w-32 md:w-48 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent mx-auto opacity-70"></div></div><div id="readerContent" className={`space-y-6 md:space-y-8 ${isReaderMode ? 'mode-reader' : ''}`}>{hebrewVerses.map((verse, idx) => (<div key={idx} className="verse-block group relative p-4 md:p-8 border border-white/0 hover:border-[var(--color-accent-secondary)]/20 hover:bg-[var(--color-accent-primary)]/5 transition-all duration-500 rounded-2xl"><div className="flex gap-3 md:gap-4 items-start"><div className="flex-shrink-0 pt-1.5 md:pt-2 flex items-center"><button id={`btn-${idx}`} className={`ai-scan-btn ${scanStatuses[idx] === 'scanning' ? 'scanning-pulse' : ''} ${scanStatuses[idx] === 'complete' ? 'scan-success' : ''}`} onClick={() => scanVerse(idx, verse, englishVerses[idx]?.replace(/<[^>]*>?/gm, ''))} title="Analyze Verse with Gemini AI" disabled={scanStatuses[idx] === 'scanning' || window.IS_SCANNING}>{scanStatuses[idx] === 'scanning' ? '⏳' : scanStatuses[idx] === 'complete' ? '✅' : scanStatuses[idx] === 'error' ? '⚠️' : '⚡'}</button><span className={`${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10 h-fit`}>{activeRef.verse ? activeRef.verse : idx + 1}</span></div><div className="flex-grow"><p className={`english-line text-[#a0a8c0] font-light font-sans leading-loose mb-6 group-hover:text-white transition-colors ${englishSizeClass} ${isReaderMode ? '' : 'italic'}`}>{renderEnglishVerse(englishVerses[idx]?.replace(/<[^>]*>?/gm, ''), idx)}</p><div className="hebrew-line text-right border-t border-[var(--color-accent-primary)]/20 pt-4" dir="rtl">{renderHebrewVerse(verse, activeRef.verse ? activeRef.verse - 1 : idx)}</div></div></div></div>))}</div><div className="pt-12 border-t border-[var(--color-accent-primary)]/20 flex justify-center pb-8">{selectedChapter < maxChapters && (<button onClick={() => handleChapterNav('next')} className="group flex items-center gap-4 px-8 py-4 rounded-full bg-[var(--color-accent-primary)]/10 hover:bg-[var(--color-accent-primary)]/20 border border-[var(--color-accent-primary)]/30 hover:border-[var(--color-accent-secondary)] transition-all duration-300"><span className="tech-font text-xs uppercase tracking-[0.3em] text-white">Next Chapter</span><ChevronRightIcon className="w-5 h-5 text-[var(--color-accent-secondary)] group-hover:translate-x-1 transition-transform" /></button>)}</div></div>)}</div></section>
 
-        <section className={getPanelClass('decoder')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><MagnifyingGlassIcon className="w-4 h-4" /> Rhema Scope</h2><div className="window-controls"><button onClick={() => toggleMaximize('decoder')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'decoder' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div><div className="decoder-content p-4 md:p-6 flex-grow overflow-y-auto flex flex-col pb-6"><WordBreakdownPanel selectedWord={selectedWord} journalNote={journalNote} onNoteChange={handleNoteChange} bookName={activeRef.book} chapter={activeRef.chapter} verseScanStatus={selectedWord ? scanStatuses[selectedWord.verseIndex] : 'idle'} onTriggerExport={() => setIsExportModalOpen(true)} /></div></section>
+        <section className={getPanelClass('decoder')}>
+          {/* UPDATED HEADER with Letter Bank Button */}
+          <div className="panel-header">
+            <h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2">
+              <MagnifyingGlassIcon className="w-4 h-4" /> Rhema Scope
+            </h2>
+            
+            <div className="flex items-center gap-2">
+              {/* NEW TOP BUTTON: Letter Bank */}
+              <button 
+                onClick={() => handleOpenDictionary()} 
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-colors group"
+                title="Open Letter Dictionary"
+              >
+                <InformationCircleIcon className="w-3.5 h-3.5 text-[var(--color-accent-secondary)]" />
+                <span className="text-[10px] uppercase tracking-wider text-white/70 group-hover:text-white">Letter Bank</span>
+              </button>
+
+              <div className="window-controls">
+                <button onClick={() => toggleMaximize('decoder')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">
+                  {maximizedPanel === 'decoder' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="decoder-content p-4 md:p-6 flex-grow overflow-y-auto flex flex-col pb-6">
+            <WordBreakdownPanel 
+              selectedWord={selectedWord} 
+              journalNote={journalNote} 
+              onNoteChange={handleNoteChange} 
+              bookName={activeRef.book} 
+              chapter={activeRef.chapter} 
+              verseScanStatus={selectedWord ? scanStatuses[selectedWord.verseIndex] : 'idle'} 
+              onTriggerExport={() => setIsExportModalOpen(true)} 
+              onOpenDictionary={handleOpenDictionary} 
+            />
+          </div>
+        </section>
       </div>
 
       <nav className="md:hidden fixed bottom-6 left-6 right-6 h-16 glass-panel rounded-full flex justify-around items-center z-50 shadow-[0_0_30px_rgba(0,0,0,0.8)] backdrop-blur-xl bg-[#090a20]/90">
@@ -558,7 +598,6 @@ const App: React.FC = () => {
         <button onClick={() => setIsSettingsOpen(true)} className="flex flex-col items-center gap-1 transition-colors text-[#a0a8c0] active:text-[var(--color-accent-secondary)]"><Cog6ToothIcon className="w-6 h-6" /></button>
       </nav>
 
-      {/* --- OPTIMIZED CUSTOMIZATION CONSOLE --- */}
       <div className={`fixed inset-0 z-[100] transition-all duration-500 ease-in-out ${isSettingsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
         <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setIsSettingsOpen(false)}></div>
         <div className={`absolute bottom-0 left-0 right-0 h-[85dvh] md:h-[60dvh] bg-[#050714] border-t border-[var(--color-accent-secondary)] shadow-[0_-10px_40px_rgba(0,0,0,0.9)] transform transition-transform duration-500 ease-[cubic-bezier(0.2,1,0.3,1)] flex flex-col rounded-t-[2.5rem] md:rounded-t-none ${isSettingsOpen ? 'translate-y-0' : 'translate-y-full'}`}>
@@ -608,7 +647,6 @@ const App: React.FC = () => {
         </div>
       </div>
       
-      {/* EXPORT CARD DESIGNER MODAL */}
       {isExportModalOpen && selectedWord && (
         <ExportPreviewModal 
             selectedWord={selectedWord} 

@@ -24,6 +24,31 @@ const PRESETS = [
     { type: 'grad', val: 'linear-gradient(to bottom, #000000, #434343)', title: 'Monochrome' },
 ];
 
+const MOODS = [
+  { value: "Mystical", label: "Mystical & Glowing" },
+  { value: "Dramatic", label: "Dramatic & Intense" },
+  { value: "Peaceful", label: "Peaceful & Calm" },
+  { value: "Ancient", label: "Ancient & Historical" },
+  { value: "Dark", label: "Dark & Mysterious" }
+];
+
+const ELEMENTS = [
+  { value: "Golden Particles", label: "Golden Dust" },
+  { value: "Blue Water", label: "Deep Ocean Water" },
+  { value: "Cracked Stone", label: "Ancient Stone Tablet" },
+  { value: "Nebula Clouds", label: "Cosmic Nebula" },
+  { value: "Olive Wood", label: "Olive Tree Wood" },
+  { value: "Fire", label: "Burning Fire" },
+  { value: "Parchment", label: "Aged Parchment" }
+];
+
+const STYLES = [
+  { value: "3D Render", label: "3D Realistic" },
+  { value: "Oil Painting", label: "Oil Painting" },
+  { value: "Digital Art", label: "Digital Art" },
+  { value: "Cinematic", label: "Cinematic Photography" }
+];
+
 const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, bookName, chapter, onClose, journalNote, onSaveCard }) => {
   const [toggles, setToggles] = useState({
     verse: true,
@@ -38,6 +63,18 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
   const [background, setBackground] = useState("linear-gradient(160deg, #101228 0%, #080815 100%)");
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiFeedback, setAiFeedback] = useState("");
+  
+  // Custom Color State
+  const [textColor, setTextColor] = useState('#ffffff');
+  const [arrowColor, setArrowColor] = useState('rgba(255, 255, 255, 0.1)');
+  const [glowColor, setGlowColor] = useState('#bd00ff');
+  const [showGlow, setShowGlow] = useState(true);
+
+  const [customSettings, setCustomSettings] = useState({
+      mood: 'Mystical',
+      element: 'Golden Particles',
+      style: '3D Render'
+  });
   
   const previewRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -100,7 +137,7 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
     setBackground(val);
   };
 
-  const handleAiBackground = async () => {
+  const generateCustomBackground = async () => {
     if (!process.env.API_KEY) {
         alert("API Key missing");
         return;
@@ -108,17 +145,28 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
     setIsAiLoading(true);
     setAiFeedback("Consulting Neural Network...");
     
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const prompt = `Abstract, spiritual background texture. Theme: Biblical Hebrew concept of '${selectedWord.text}' meaning '${analysis?.definition || 'spirituality'}'. Context: ${bookName} ${chapter}. Mood: Mystical, ancient, glowing, deep dark colors to support white text, cosmic, nebula. Style: High quality digital art, ethereal, abstract, no text.`;
+        // Master Prompt
+        const masterPrompt = `
+        A high-quality background texture for a spiritual app.
+        Subject: ${customSettings.mood} ${customSettings.element}.
+        Style: ${customSettings.style}.
+        Details: Deep rich colors, cinematic lighting, 8k resolution, highly realistic texture.
+        Composition: Darker exposure around the edges (vignette), center area clear for text overlay.
+        No text, no letters, just texture and atmosphere.
+        `;
         
+        console.log("Generating with prompt:", masterPrompt);
+
         const response = await ai.models.generateImages({
             model: 'imagen-4.0-generate-001',
-            prompt: prompt,
+            prompt: masterPrompt,
             config: {
                 numberOfImages: 1,
                 outputMimeType: 'image/jpeg',
-                aspectRatio: '3:4' // Portrait for card
+                aspectRatio: '3:4' 
             }
         });
 
@@ -128,11 +176,59 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
             setAiFeedback("Background Materialized");
             setTimeout(() => setAiFeedback(""), 3000);
         } else {
-            setAiFeedback("Generation failed.");
+            throw new Error("No image returned");
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error("AI BG Gen failed", e);
-        setAiFeedback("Neural Link Error");
+        
+        // --- FALLBACK LOGIC ---
+        // If image generation fails (e.g. 429 quota), use Text-to-CSS generation
+        setAiFeedback("Image quota limits. Switching to CSS generation...");
+        
+        try {
+            const cssPrompt = `
+                Generate a CSS background property string (e.g., 'linear-gradient(...)') that captures this mood:
+                Mood: ${customSettings.mood}
+                Element: ${customSettings.element}
+                Style: ${customSettings.style}
+                
+                Constraints:
+                1. Must be dark enough for white text visibility.
+                2. Use rich, deep colors.
+                3. Return ONLY the CSS value string. Do not include 'background: ' or ';'.
+            `;
+
+            const fallbackResponse = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: cssPrompt
+            });
+
+            let cssValue = fallbackResponse.text?.trim();
+            if (cssValue) {
+                // Cleanup markdown if present
+                cssValue = cssValue.replace(/^`+|`+$/g, '').replace(/^css/i, '').trim();
+                if (cssValue.endsWith(';')) cssValue = cssValue.slice(0, -1);
+                
+                setBackground(cssValue);
+                setAiFeedback("Theme Generated (CSS Fallback)");
+                setTimeout(() => setAiFeedback(""), 3000);
+            } else {
+                throw new Error("No CSS generated");
+            }
+        } catch (fallbackError) {
+             console.error("Fallback failed", fallbackError);
+             setAiFeedback("System Overload. Applying Preset.");
+             // Ultimate hardcoded fallback
+             const map: Record<string, string> = {
+                 "Mystical": "linear-gradient(to top right, #3a1c71, #d76d77, #ffaf7b)",
+                 "Dramatic": "linear-gradient(to bottom, #000000, #434343)",
+                 "Peaceful": "linear-gradient(to right, #0f2027, #203a43, #2c5364)",
+                 "Ancient": "linear-gradient(135deg, #3E2D23 0%, #1A120B 100%)",
+                 "Dark": "linear-gradient(160deg, #1a1a2e 0%, #000000 100%)"
+             };
+             setBackground(map[customSettings.mood] || PRESETS[0].val);
+             setTimeout(() => setAiFeedback(""), 3000);
+        }
     } finally {
         setIsAiLoading(false);
     }
@@ -178,6 +274,63 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
             </div>
 
             <div className="section-divider-horizontal"></div>
+            
+            {/* Visual Palette Section */}
+            <div className="mb-6">
+                <h4 className="text-[10px] text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest mb-4">Visual Palette</h4>
+                
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-white/60 tech-font">Text Color</span>
+                        <div className="relative overflow-hidden w-8 h-8 rounded-full border border-white/20">
+                            <input 
+                                type="color" 
+                                value={textColor} 
+                                onChange={e => setTextColor(e.target.value)} 
+                                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 border-0 cursor-pointer" 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-white/60 tech-font">Flow Arrows</span>
+                        <div className="relative overflow-hidden w-8 h-8 rounded-full border border-white/20">
+                             <input 
+                                type="color" 
+                                value={arrowColor} 
+                                onChange={e => setArrowColor(e.target.value)} 
+                                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 border-0 cursor-pointer" 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                           <label className="flex items-center cursor-pointer">
+                               <div className="relative">
+                                   <input type="checkbox" className="sr-only" checked={showGlow} onChange={e => setShowGlow(e.target.checked)} />
+                                   <div className={`block w-8 h-5 rounded-full transition-colors ${showGlow ? 'bg-[var(--color-accent-secondary)]' : 'bg-white/10'}`}></div>
+                                   <div className={`dot absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform ${showGlow ? 'transform translate-x-3' : ''}`}></div>
+                               </div>
+                           </label>
+                           <span className="text-[11px] text-white/60 tech-font">Tile Glow</span>
+                        </div>
+                        
+                        {showGlow && (
+                            <div className="relative overflow-hidden w-8 h-8 rounded-full border border-white/20 animate-fadeIn">
+                                <input 
+                                    type="color" 
+                                    value={glowColor} 
+                                    onChange={e => setGlowColor(e.target.value)} 
+                                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 border-0 cursor-pointer" 
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="section-divider-horizontal"></div>
 
             <div className="mb-6">
                 <h4 className="text-[10px] text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest mb-4">Background Style</h4>
@@ -195,16 +348,42 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
                     ))}
                 </div>
 
-                <span className="control-sublabel mt-4">AI Themes</span>
-                <button 
-                    onClick={handleAiBackground}
-                    disabled={isAiLoading}
-                    className="ai-gen-btn"
-                >
-                    {isAiLoading ? <span className="animate-spin">⏳</span> : <span>✨</span>}
-                    {isAiLoading ? 'Dreaming...' : 'Generate Theme'}
-                </button>
-                {aiFeedback && <p className="text-[9px] text-center text-white/50 animate-pulse">{aiFeedback}</p>}
+                <span className="control-sublabel mt-4">Custom AI Theme</span>
+                <div className="ai-prompt-builder">
+                    <select 
+                        className="slick-select"
+                        value={customSettings.mood} 
+                        onChange={(e) => setCustomSettings({...customSettings, mood: e.target.value})}
+                    >
+                        {MOODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+
+                    <select 
+                        className="slick-select"
+                        value={customSettings.element} 
+                        onChange={(e) => setCustomSettings({...customSettings, element: e.target.value})}
+                    >
+                        {ELEMENTS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                    </select>
+
+                    <select 
+                        className="slick-select"
+                        value={customSettings.style} 
+                        onChange={(e) => setCustomSettings({...customSettings, style: e.target.value})}
+                    >
+                        {STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </select>
+
+                    <button 
+                        onClick={generateCustomBackground}
+                        disabled={isAiLoading}
+                        className="ai-gen-btn mt-2"
+                    >
+                        {isAiLoading ? <span className="animate-spin">⏳</span> : <span>✨</span>}
+                        {isAiLoading ? 'Dreaming...' : 'Generate Theme'}
+                    </button>
+                    {aiFeedback && <p className="text-[9px] text-center text-white/50 animate-pulse mt-2">{aiFeedback}</p>}
+                </div>
             </div>
           </div>
 
@@ -242,53 +421,73 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
                  background: background,
                  backgroundSize: 'cover', 
                  backgroundPosition: 'center',
-                 transition: 'background 0.5s ease'
+                 transition: 'background 0.5s ease',
+                 color: textColor
              }}
           >
              <div className="absolute inset-0 bg-black/10 pointer-events-none rounded-[32px]"></div>
              
-             <div className="absolute top-6 left-8 text-[9px] tech-font text-[var(--color-accent-secondary)] tracking-[0.3em] opacity-50 uppercase relative z-10">
-                Genesis Reveal // Neural Export
+             {/* Layout Fix: Moved header to relative positioning to prevent overlap */}
+             <div className="w-full flex justify-between items-start mb-2 relative z-10 px-2 pt-2">
+                 <div className="text-[9px] tech-font text-[var(--color-accent-secondary)] tracking-[0.3em] opacity-50 uppercase">
+                    Genesis Reveal // Neural Export
+                 </div>
              </div>
 
              {toggles.verse && (
-                <div className="flex justify-center mb-6 pt-4 relative z-10">
-                  <span className="verse-badge backdrop-blur-sm">{bookName.toUpperCase()} {chapter}:{selectedWord.verseIndex + 1}</span>
+                <div className="flex justify-center mb-6 mt-2 relative z-10">
+                  <span className="verse-badge backdrop-blur-sm" style={{ color: textColor === '#ffffff' ? 'var(--color-accent-secondary)' : textColor, borderColor: textColor === '#ffffff' ? 'var(--color-accent-secondary)' : textColor }}>
+                    {bookName.toUpperCase()} {chapter}:{selectedWord.verseIndex + 1}
+                  </span>
                 </div>
              )}
 
              {toggles.hebrew && (
-                <h1 className="hebrew-focus-word text-white relative z-10" style={{ fontSize: '4rem' }}>
+                <h1 className="hebrew-focus-word relative z-10" style={{ fontSize: '4rem', color: textColor }}>
                   {selectedWord.text}
                 </h1>
              )}
 
              {toggles.morph && (
                 <div className="mb-6 relative z-10">
-                  <p className="text-[#888] tech-font text-[10px] uppercase tracking-widest mb-1">Analysis</p>
-                  <p className="text-white/80 text-sm mb-1">{analysis?.morphology || "Morphology Data"}</p>
-                  <p className="text-white text-lg italic">"{analysis?.definition || "Translation"}"</p>
+                  <p className="tech-font text-[10px] uppercase tracking-widest mb-1 opacity-60">Analysis</p>
+                  <p className="text-sm mb-1 opacity-80">{analysis?.morphology || "Morphology Data"}</p>
+                  <p className="text-lg italic" style={{ color: textColor }}>"{analysis?.definition || "Translation"}"</p>
                   <div className="section-divider"></div>
                 </div>
              )}
 
              {toggles.picto && (
                 <div className="mb-6 relative z-10">
-                  <h3 className="section-title">Pictographic Flow</h3>
+                  <h3 className="section-title" style={{ color: textColor, opacity: 0.5 }}>Pictographic Flow</h3>
                   <div className="flex flex-row flex-wrap justify-center items-start gap-3">
                     {breakdown.map((l, i) => (
                       <React.Fragment key={i}>
                         <div className="picto-tile-wrapper">
-                          <div className="picto-tile active-tile backdrop-blur-md bg-black/40" style={{ width: '65px', height: '65px' }}>
+                          <div 
+                            className="picto-tile backdrop-blur-md bg-black/40" 
+                            style={{ 
+                                width: '65px', 
+                                height: '65px',
+                                borderColor: showGlow ? glowColor : 'rgba(255,255,255,0.1)',
+                                boxShadow: showGlow ? `0 0 20px ${glowColor}66` : 'none',
+                                color: textColor
+                            }}
+                          >
                             <span className="text-2xl">{l.emoji}</span>
                           </div>
                           <div className="picto-info">
-                            <span className="picto-letter text-sm">{l.char}</span>
-                            <span className="picto-meaning" style={{ fontSize: '0.5rem' }}>{l.pictograph}</span>
+                            <span className="picto-letter text-sm" style={{ color: textColor }}>{l.char}</span>
+                            <span className="picto-meaning" style={{ fontSize: '0.5rem', opacity: 0.7 }}>{l.pictograph}</span>
                           </div>
                         </div>
                         {i < breakdown.length - 1 && (
-                          <span className="picto-arrow" style={{ height: '65px', fontSize: '0.8rem' }}>→</span>
+                          <span 
+                            className="picto-arrow flex items-center justify-center" 
+                            style={{ height: '65px', fontSize: '0.8rem', color: arrowColor }}
+                          >
+                              →
+                          </span>
                         )}
                       </React.Fragment>
                     ))}
@@ -299,9 +498,9 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
              {toggles.personal && journalNote && (
                 <div className="mb-6 relative z-10">
                    <div className="section-divider"></div>
-                   <h3 className="section-title">Personal Reflection</h3>
+                   <h3 className="section-title" style={{ color: textColor, opacity: 0.5 }}>Personal Reflection</h3>
                    <div className="p-4 bg-black/40 backdrop-blur-md rounded-xl text-left border border-white/5">
-                      <p className="text-white/80 text-xs italic leading-relaxed">
+                      <p className="text-xs italic leading-relaxed" style={{ color: textColor, opacity: 0.9 }}>
                         {journalNote}
                       </p>
                    </div>
@@ -311,17 +510,17 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
              {toggles.guided && (
                 <div className="relative z-10">
                    <div className="section-divider"></div>
-                   <h3 className="section-title">Spiritual Insight</h3>
-                   <div className="reflection-card text-left bg-black/40 backdrop-blur-md border-l-2 border-[var(--color-accent-secondary)] rounded-r-lg p-5">
+                   <h3 className="section-title" style={{ color: textColor, opacity: 0.5 }}>Spiritual Insight</h3>
+                   <div className="reflection-card text-left bg-black/40 backdrop-blur-md border-l-2 rounded-r-lg p-5" style={{ borderColor: 'var(--color-accent-secondary)' }}>
                       <span className="absolute top-2 right-4 text-xl opacity-20">✨</span>
-                      <p className="reflection-text text-white/90 leading-relaxed text-sm italic">
+                      <p className="reflection-text leading-relaxed text-sm italic" style={{ color: textColor, opacity: 0.9 }}>
                         {analysis?.reflection || "Awaiting neural analysis for deeper spiritual context..."}
                       </p>
                    </div>
                 </div>
              )}
 
-             <div className="mt-12 text-[9px] tech-font text-white/20 uppercase tracking-[0.5em] relative z-10">
+             <div className="mt-12 text-[9px] tech-font uppercase tracking-[0.5em] relative z-10 opacity-30">
                 Decoded via Gemini v3.0
              </div>
           </div>

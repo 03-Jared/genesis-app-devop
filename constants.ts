@@ -127,3 +127,251 @@ export const BIBLE_VERSE_COUNTS: Record<string, number[]> = {
   "Zechariah": [21, 13, 10, 14, 11, 15, 14, 23, 17, 12, 17, 14, 9, 21],
   "Malachi": [14, 17, 18, 6]
 };
+
+// ============================================
+// HEBREW LETTER DICTIONARY DATABASE
+// ============================================
+export const LETTER_DETAILS = [
+  {
+      char: 'א',
+      name: 'Aleph',
+      emoji: '🐮',
+      summary: 'Ox Head: Strength, Leader, First',
+      fullDetails: `
+          <p>Aleph is the first letter of the Aleph-Bet. In its ancient pictographic form, it represents an <b>ox head</b>.</p>
+          <p>Because the ox was the strongest animal in agrarian society, Aleph represents <b>strength, power, and leadership</b>. As the first letter, it often symbolizes God the Father, the ultimate source of strength and origin of all things.</p>
+          <p>Numerically, it represents the number 1, symbolizing unity and primacy.</p>
+      `
+  },
+  {
+      char: 'ב',
+      name: 'Bet',
+      emoji: '⛺',
+      summary: 'Tent Floorplan: House, In, Inside',
+      fullDetails: `
+          <p>Bet is the picture of a nomadic tent floorplan. It represents the concept of a <b>house, dwelling, or household</b>.</p>
+          <p>It is also the preposition "in" or "inside." Spiritually, it speaks to the idea of being inside the covenant or dwelling in God's presence.</p>
+          <p>The very first word of the Bible, Bereshit (In the beginning), starts with Bet.</p>
+      `
+  },
+  {
+      char: 'ג',
+      name: 'Gimel',
+      emoji: '🐫',
+      summary: 'Camel: To Lift Up, Pride, Benefit',
+      fullDetails: `
+          <p>Gimel is represented by the <b>camel</b>, or specifically the camel's neck/head. The camel was a beast of burden that lifted up and carried goods.</p>
+          <p>It signifies <b>lifting up, pride, or rendering a benefit</b>. It is related to the word <i>gemul</i>, meaning recompense or reward.</p>
+          <p>Gimel walks (or runs) towards Dalet (the poor), symbolizing the rich running to give to the poor.</p>
+      `
+  },
+  {
+      char: 'ד',
+      name: 'Dalet',
+      emoji: '🚪',
+      summary: 'Door: Path, Enter, Move',
+      fullDetails: `
+          <p>Dalet pictographically represents a <b>tent door</b>. It signifies the entrance, movement, or a pathway.</p>
+          <p>It implies a decision to enter or exit. In a spiritual sense, it represents the <b>doorway to the heart</b> or the gate to revelation.</p>
+          <p>It is also associated with humility, as a poor person (dal) hangs their head at the door.</p>
+      `
+  },
+  {
+      char: 'ה',
+      name: 'Hei',
+      emoji: '🧘',
+      summary: 'Man with Arms Raised: Behold, Reveal, Breath',
+      fullDetails: `
+          <p>Hei shows a person with arms raised, often shouting "Hey!" or "Behold!". It represents <b>revelation, breath, and divine spirit</b>.</p>
+          <p>It is the sound of breathing (Hh), symbolizing the Spirit (Ruach) of God. When added to a word, it often imparts divine essence or makes it feminine.</p>
+          <p>It appears twice in the Divine Name (YHVH), emphasizing God as the source of breath and life.</p>
+      `
+  },
+  {
+      char: 'ו',
+      name: 'Vav',
+      emoji: '🪝',
+      summary: 'Tent Peg: Add, Secure, Hook',
+      fullDetails: `
+          <p>Vav is a <b>tent peg or nail</b> used to secure the tent. Its function is to join things together.</p>
+          <p>In Hebrew grammar, Vav is the conjunction "and". It connects heaven and earth, man and God. It represents <b>connection, security, and continuity</b>.</p>
+          <p>It is the sixth letter, often associated with man (created on the 6th day).</p>
+      `
+  },
+  {
+      char: 'ז',
+      name: 'Zayin',
+      emoji: '⚔️',
+      summary: 'Mattock/Weapon: Cut, Food, Nourish',
+      fullDetails: `
+          <p>Zayin resembles a <b>mattock or agricultural weapon</b>. It implies cutting, harvesting, or defending.</p>
+          <p>It is related to the word <i>zan</i>, meaning to feed or sustain. While it looks like a weapon, its root meaning is often about <b>sustenance and food</b> derived from the harvest.</p>
+          <p>It symbolizes the sword of the spirit or the tool used to divide truth from lies.</p>
+      `
+  },
+  {
+      char: 'ח',
+      name: 'Chet',
+      emoji: '🚧',
+      summary: 'Tent Wall: Separate, Protect, Life',
+      fullDetails: `
+          <p>Chet is the picture of a <b>tent wall</b> or fence. It signifies separation, protection, and a private enclosure.</p>
+          <p>It is the first letter of <i>Chaim</i> (Life). It suggests that life requires boundaries and protection. It also represents a <b>sanctuary or inner room</b>.</p>
+          <p>It separates the inside from the outside, the holy from the profane.</p>
+      `
+  },
+  {
+      char: 'ט',
+      name: 'Tet',
+      emoji: '🧺',
+      summary: 'Basket/Snake: Surround, Contain, Twist',
+      fullDetails: `
+          <p>Tet represents a <b>basket</b> or a coiling snake. It signifies surrounding, containing, or twisting.</p>
+          <p>It can represent a womb (container of life) or a trap. It is associated with potential—either for good (tov) or hidden danger.</p>
+          <p>It is the least used letter in the Bible but carries the meaning of <b>hidden goodness</b> stored up.</p>
+      `
+  },
+  {
+      char: 'י',
+      name: 'Yod',
+      emoji: '💪',
+      summary: 'Arm and Hand: Work, Throw, Worship',
+      fullDetails: `
+          <p>Yod is the <b>closed hand or arm</b>. It represents work, throwing, creating, and deed.</p>
+          <p>It is the smallest letter but contains the power of creation. It signifies a finished work or a deed done.</p>
+          <p>As the number 10, it represents divine order and the completed hand of God.</p>
+      `
+  },
+  {
+      char: 'כ',
+      name: 'Kaf',
+      emoji: '✋',
+      summary: 'Open Palm: Bend, Open, Allow',
+      fullDetails: `
+          <p>Kaf is the <b>open palm</b> or the hollow of the hand. It represents bending, taming, or allowing.</p>
+          <p>It signifies covering, as one covers their eyes or covers an object. It is the root of <i>kipur</i> (atonement/covering).</p>
+          <p>It implies molding or shaping, as a potter shapes clay with the palm.</p>
+      `
+  },
+  {
+      char: 'ל',
+      name: 'Lamed',
+      emoji: '🦯',
+      summary: 'Shepherd Staff: Teach, Yoke, Authority',
+      fullDetails: `
+          <p>Lamed is a <b>shepherd's staff</b>. It represents authority, teaching, urging, and direction.</p>
+          <p>It is the tallest letter, reaching towards heaven. It signifies <b>learning and instruction</b>. To learn (lamad) is to be goaded in the right direction.</p>
+          <p>It represents the King of kings, the ultimate Shepherd.</p>
+      `
+  },
+  {
+      char: 'מ',
+      name: 'Mem',
+      emoji: '🌊',
+      summary: 'Water: Chaos, Mighty, Unknown',
+      fullDetails: `
+          <p>Mem is the picture of <b>waves of water</b>. It represents massive liquid, chaos, or the unknown deep.</p>
+          <p>It signifies <b>chaos from which life emerges</b>. It is the womb, the ocean, and the massive stream of time.</p>
+          <p>It is the central letter of the Aleph-Bet, representing the flow of history.</p>
+      `
+  },
+  {
+      char: 'נ',
+      name: 'Nun',
+      emoji: '🌱',
+      summary: 'Seed/Sprout: Life, Heir, Continue',
+      fullDetails: `
+          <p>Nun represents a <b>seed or fish</b> darting through water. It signifies life, activity, and continuation.</p>
+          <p>It represents the <b>heir</b> who continues the family line. It implies perpetuity and eternal life.</p>
+          <p>In Aramaic, Nun means fish. It is the life that emerges from the Mem (water).</p>
+      `
+  },
+  {
+      char: 'ס',
+      name: 'Samekh',
+      emoji: '🪵',
+      summary: 'Prop/Support: Turn, Protect, Grab',
+      fullDetails: `
+          <p>Samekh is a <b>prop or pillar</b> used for support. It also resembles a thorn that grabs hold.</p>
+          <p>It represents <b>support, protection, and turning</b>. It is a circle representing an endless cycle or a shield.</p>
+          <p>It supports the fallen (somekh noflim).</p>
+      `
+  },
+  {
+      char: 'ע',
+      name: 'Ayin',
+      emoji: '👁️',
+      summary: 'Eye: Watch, Know, Experience',
+      fullDetails: `
+          <p>Ayin is the <b>eye</b>. It signifies seeing, watching, knowing, and experiencing.</p>
+          <p>To see in Hebrew often means to understand or to experience personally. It represents <b>insight and perspective</b>.</p>
+          <p>It acts as a fountain or spring (also ayin) that reflects what is above.</p>
+      `
+  },
+  {
+      char: 'פ',
+      name: 'Pe',
+      emoji: '👄',
+      summary: 'Mouth: Speak, Blow, Edge',
+      fullDetails: `
+          <p>Pe is the <b>mouth</b>. It represents speaking, blowing, and opening.</p>
+          <p>It signifies the <b>power of speech</b> and communication. It can represent a sword (two-edged sword is literally "two-mouthed").</p>
+          <p>It follows Ayin (eye), suggesting that we must see before we speak.</p>
+      `
+  },
+  {
+      char: 'צ',
+      name: 'Tsade',
+      emoji: '🎣',
+      summary: 'Fishhook/Man on Side: Hunt, Desire, Trail',
+      fullDetails: `
+          <p>Tsade represents a <b>fishhook</b> or a man lying on his side. It signifies hunting, chasing, or desiring.</p>
+          <p>It is the root of <i>tzadik</i> (righteous one). The righteous one hunts for God or is a "fisher of men".</p>
+          <p>It implies a path or a trail being followed.</p>
+      `
+  },
+  {
+      char: 'ק',
+      name: 'Qof',
+      emoji: '🌅',
+      summary: 'Sun on Horizon/Needle Eye: Circle, Time, Behind',
+      fullDetails: `
+          <p>Qof represents the <b>sun on the horizon</b> or the back of the head. It signifies a circle, revolution of time, or what is behind.</p>
+          <p>It represents <b>holiness</b> (kadosh) in the sense of separation. It implies coming full circle.</p>
+          <p>It can mean "to follow" or "to come after".</p>
+      `
+  },
+  {
+      char: 'ר',
+      name: 'Resh',
+      emoji: '👤',
+      summary: 'Head of Man: First, Top, Beginning',
+      fullDetails: `
+          <p>Resh is the <b>head of a person</b>. It represents the head, the top, the first, or the beginning.</p>
+          <p>It implies <b>authority and priority</b>. Whatever is at the "resh" is the most important.</p>
+          <p>It is the root of <i>rosh</i> (head) and <i>reshit</i> (beginning).</p>
+      `
+  },
+  {
+      char: 'ש',
+      name: 'Shin',
+      emoji: '🦷',
+      summary: 'Teeth: Consume, Destroy, Sharp',
+      fullDetails: `
+          <p>Shin represents <b>two front teeth</b>. It signifies consuming, destroying, sharp, or pressing.</p>
+          <p>It represents <b>fire and digestion</b>. It destroys to transform. It is the letter of <i>Shaddai</i> (God Almighty) and <i>Shalom</i> (Peace/Wholeness).</p>
+          <p>It implies dividing or analyzing.</p>
+      `
+  },
+  {
+      char: 'ת',
+      name: 'Tav',
+      emoji: '✝️',
+      summary: 'Crossed Sticks: Mark, Sign, Covenant',
+      fullDetails: `
+          <p>Tav is the picture of <b>crossed sticks</b>. It represents a mark, a sign, a signal, or a monument.</p>
+          <p>It signifies a <b>covenant or seal</b>. It is the final letter, representing the seal of truth (Emet).</p>
+          <p>In ancient times, it was the mark of ownership or agreement.</p>
+      `
+  }
+];

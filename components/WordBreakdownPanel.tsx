@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { WordData, LetterDefinition, AiWordAnalysis } from '../types';
 import { DEFAULT_HEBREW_MAP, SOFIT_MAP } from '../constants';
-import { SwatchIcon, CpuChipIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { SwatchIcon, CpuChipIcon, ArrowRightIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 
 interface WordBreakdownPanelProps {
   selectedWord: (WordData & { aiDefinition?: AiWordAnalysis }) | null;
@@ -11,6 +12,7 @@ interface WordBreakdownPanelProps {
   chapter?: number;
   verseScanStatus?: 'idle' | 'scanning' | 'complete' | 'error';
   onTriggerExport: () => void;
+  onOpenDictionary?: (char?: string) => void;
 }
 
 const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({ 
@@ -20,7 +22,8 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   bookName,
   chapter,
   verseScanStatus = 'idle',
-  onTriggerExport
+  onTriggerExport,
+  onOpenDictionary
 }) => {
   const getCleanHebrew = (text: string): string => text.replace(/[^\u05D0-\u05EA]/g, "");
   const getLetterBreakdown = (cleanWord: string): LetterDefinition[] => {
@@ -106,18 +109,32 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
       {selectedWord && (
         <>
             <div className="mb-8 w-full bg-[#090a20]/20 rounded-2xl border border-[var(--color-accent-primary)]/10 p-6 backdrop-blur-sm">
-                <div className="text-[10px] tech-font text-[var(--color-accent-secondary)] uppercase tracking-widest mb-6 text-center border-b border-[var(--color-accent-primary)]/20 pb-4 w-1/2 mx-auto">
-                    Pictographic Sequence
+                
+                {/* Pictographic Sequence Header */}
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--color-accent-primary)]/20 px-2">
+                   <div className="text-[10px] tech-font text-[var(--color-accent-secondary)] uppercase tracking-widest">
+                       Pictographic Sequence
+                   </div>
+                   {/* Button removed here, moved to panel header */}
                 </div>
                 
-                {/* Changed justify-center to justify-start to prevent first item clipping */}
+                {/* Pictographic Tiles */}
                 <div className="flex flex-row items-start justify-start gap-2 md:gap-4 overflow-x-auto pb-4 scrollbar-hide">
                   {breakdown.map((l, i) => (
                       <React.Fragment key={i}>
-                          <div className="flex flex-col items-center gap-3 shrink-0 group min-w-[90px]">
+                          <div className="flex flex-col items-center gap-3 shrink-0 group min-w-[90px] relative">
                                <div className="w-20 h-20 flex items-center justify-center bg-[#090a20] border border-[var(--color-accent-primary)]/30 rounded-xl relative shadow-[0_4px_10px_rgba(0,0,0,0.3)] group-hover:border-[var(--color-accent-secondary)] group-hover:shadow-[0_0_15px_var(--color-accent-primary)] transition-all duration-300">
                                     <div className="absolute inset-0 bg-[var(--color-accent-primary)]/5 rounded-xl"></div>
                                     <span className="text-4xl filter drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] transform group-hover:scale-110 transition-transform duration-300 z-10">{l.emoji}</span>
+                                    
+                                    {/* Specific 'i' icon for this letter */}
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); onOpenDictionary && onOpenDictionary(l.char); }}
+                                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-[var(--color-accent-secondary)] border border-white/20 hover:border-white text-white/70 hover:text-white flex items-center justify-center transition-all duration-300 z-20 opacity-0 group-hover:opacity-100 scale-90 hover:scale-100"
+                                      title={`See meaning of ${l.name}`}
+                                    >
+                                      <InformationCircleIcon className="w-3.5 h-3.5" />
+                                    </button>
                                </div>
                                <div className="text-center flex flex-col gap-1">
                                   <div className="text-[10px] md:text-[11px] font-bold text-white uppercase tracking-wider font-mono whitespace-nowrap">
