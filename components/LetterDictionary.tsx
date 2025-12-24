@@ -1,7 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { LETTER_DETAILS } from '../constants';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline';
 
 interface LetterDictionaryProps {
   onClose: () => void;
@@ -35,6 +35,38 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
       document.body.style.overflow = '';
     };
   }, [targetChar]);
+
+  const playLetterName = (name: string) => {
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      
+      const speakNow = () => {
+          const utterance = new SpeechSynthesisUtterance(name);
+          
+          // Attempt to find the Hebrew voice to match the main app's style
+          const voices = synth.getVoices();
+          const hebrewVoice = voices.find(v => v.lang.includes('he'));
+          
+          if (hebrewVoice) {
+              utterance.voice = hebrewVoice;
+              utterance.lang = "he-IL";
+              // Slower rate for clear pronunciation of the letter name
+              utterance.rate = 0.8; 
+          } else {
+              // Fallback to English if Hebrew voice is missing (e.g. some desktop setups)
+              utterance.lang = 'en-US'; 
+              utterance.rate = 0.9;
+          }
+          
+          synth.speak(utterance);
+      };
+      
+      if (synth.getVoices().length === 0) {
+          synth.addEventListener('voiceschanged', speakNow, { once: true });
+      } else {
+          speakNow();
+      }
+  };
 
   return (
     <div className="fixed inset-0 z-[5000] bg-[#0a0a14] overflow-y-auto flex flex-col animate-fadeIn">
@@ -71,12 +103,21 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
               <div className="flex-1">
                 <div className="flex justify-between items-start w-full">
                     <div>
-                        <h3 className="text-2xl md:text-3xl text-white font-bold mb-1 font-serif">
-                        <span className="text-[var(--color-accent-secondary)] mr-3 hebrew-font font-bold">
-                            {letter.char}
-                        </span>
-                        {letter.name}
-                        </h3>
+                        <div className="flex items-center gap-3 mb-1">
+                            <h3 className="text-2xl md:text-3xl text-white font-bold font-serif">
+                                <span className="text-[var(--color-accent-secondary)] mr-3 hebrew-font font-bold">
+                                    {letter.char}
+                                </span>
+                                {letter.name}
+                            </h3>
+                            <button 
+                                onClick={() => playLetterName(letter.name)}
+                                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-[var(--color-accent-secondary)] hover:text-white hover:border-transparent text-white/50 transition-all flex items-center justify-center"
+                                title={`Pronounce ${letter.name}`}
+                            >
+                                <SpeakerWaveIcon className="w-4 h-4" />
+                            </button>
+                        </div>
                         {letter.pronunciation && (
                             <span className="inline-block px-2 py-1 bg-[#0a0a14] border border-white/20 rounded text-[var(--color-accent-secondary)] text-xs font-mono tracking-wide mb-2">
                                 🔊 {letter.pronunciation}

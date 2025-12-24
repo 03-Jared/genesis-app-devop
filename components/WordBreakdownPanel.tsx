@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { WordData, LetterDefinition, AiWordAnalysis } from '../types';
 import { DEFAULT_HEBREW_MAP, SOFIT_MAP } from '../constants';
 import { SwatchIcon, CpuChipIcon, ArrowRightIcon, InformationCircleIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline';
@@ -62,13 +62,40 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   const strictCleanText = selectedWord ? getCleanHebrew(selectedWord.text) : '';
   const breakdown = selectedWord ? getLetterBreakdown(strictCleanText) : [];
 
+  // Robust Audio Player Logic
   const handlePlayAudio = () => {
       if (!selectedWord) return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(selectedWord.cleanText);
-      utterance.lang = "he-IL"; 
-      utterance.rate = 0.8; 
-      window.speechSynthesis.speak(utterance);
+      
+      const synth = window.speechSynthesis;
+      const textToSpeak = selectedWord.cleanText; // Speak Hebrew text
+
+      // Cancel current
+      synth.cancel();
+
+      const speakNow = () => {
+          const utterance = new SpeechSynthesisUtterance(textToSpeak);
+          
+          // Find Hebrew voice
+          const voices = synth.getVoices();
+          const hebrewVoice = voices.find(v => v.lang.includes('he'));
+          
+          if (hebrewVoice) {
+              utterance.voice = hebrewVoice;
+              utterance.lang = "he-IL";
+              utterance.rate = 0.8;
+          } else {
+              // Fallback
+              utterance.lang = "he";
+          }
+          
+          synth.speak(utterance);
+      };
+
+      if (synth.getVoices().length === 0) {
+          synth.addEventListener('voiceschanged', speakNow, { once: true });
+      } else {
+          speakNow();
+      }
   };
 
   return (
@@ -96,30 +123,36 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
              </div>
 
              <div className="flex flex-col md:flex-row md:flex-wrap md:items-baseline gap-2 md:gap-6 mt-2">
-                <div className="flex flex-col items-center gap-1">
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-col items-center gap-1 relative">
+                    <div className="flex items-center gap-4 relative">
                         <span className="hebrew-text text-5xl md:text-6xl text-[var(--color-accent-secondary)] drop-shadow-[0_0_15px_var(--color-accent-secondary)] leading-tight max-w-full break-words">
                             {selectedWord ? selectedWord.text : "--"}
                         </span>
+                        
+                        {/* Audio Button - Floating Right */}
                         {selectedWord && (
                             <button 
                                 onClick={handlePlayAudio}
-                                className="p-2 rounded-full border border-white/10 hover:border-[var(--color-accent-secondary)] hover:bg-[var(--color-accent-secondary)]/10 text-white/60 hover:text-[var(--color-accent-secondary)] transition-all"
+                                className="absolute -right-12 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/5 border border-white/20 hover:border-[var(--color-accent-secondary)] hover:bg-[var(--color-accent-secondary)]/20 hover:shadow-[0_0_15px_var(--color-accent-secondary)] text-white hover:text-white transition-all flex items-center justify-center group"
                                 title="Listen to Hebrew Pronunciation"
                             >
-                                <SpeakerWaveIcon className="w-5 h-5" />
+                                <SpeakerWaveIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
                             </button>
                         )}
                     </div>
+                    
+                    {/* Transliteration Styling: High-Tech Theme Matched Pill */}
                     {transliteration && (
-                        <span className="text-lg text-[#00ff88] font-mono tracking-wide italic opacity-90">
-                            {transliteration}
-                        </span>
+                         <div className="mt-3 flex items-center justify-center">
+                            <span className="px-3 py-1 bg-[var(--color-accent-primary)]/10 border border-[var(--color-accent-primary)]/30 rounded-full text-[10px] md:text-xs text-[var(--color-accent-secondary)] tech-font uppercase tracking-[0.2em] shadow-[0_0_10px_rgba(0,210,255,0.1)]">
+                                {transliteration}
+                            </span>
+                        </div>
                     )}
                 </div>
                 
                 {selectedWord && (
-                  <div className="flex flex-col items-start gap-2 flex-1 min-w-[200px]">
+                  <div className="flex flex-col items-start gap-2 flex-1 min-w-[200px] mt-4 md:mt-0">
                      <span className="text-xs uppercase tracking-widest text-white/50">{morphology}</span>
                      <div className="flex items-baseline gap-3">
                         <span className="divider text-[#a0a8c0] font-light hidden md:inline select-none">//</span>
@@ -145,7 +178,6 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                    <div className="text-[10px] tech-font text-[var(--color-accent-secondary)] uppercase tracking-widest">
                        Pictographic Sequence
                    </div>
-                   {/* Button removed here, moved to panel header */}
                 </div>
                 
                 {/* Pictographic Tiles */}
