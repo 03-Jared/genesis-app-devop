@@ -1,4 +1,5 @@
 
+
 import { LetterMap } from './types';
 
 export const DEFAULT_HEBREW_MAP: LetterMap = {
@@ -33,6 +34,32 @@ export const SOFIT_MAP: Record<string, string> = {
   'ן': 'נ',
   'ף': 'פ',
   'ץ': 'צ'
+};
+
+// HELPER: Accurate Pronunciation Map for the 22 Letters
+export const LETTER_AUDIO_MAP: Record<string, string> = {
+    'א': 'אָלֶף', // Aleph
+    'ב': 'בֵּית', // Bet
+    'ג': 'גִּימֶל', // Gimel
+    'ד': 'דָּלֶת', // Dalet
+    'ה': 'הֵא',   // Hey
+    'ו': 'וָו',   // Vav
+    'ז': 'זַיִן', // Zayin
+    'ח': 'חֵית', // Chet
+    'ט': 'טֵית', // Tet
+    'י': 'יוֹד', // Yod
+    'כ': 'כַּף',  // Kaf
+    'ל': 'לָמֶד', // Lamed
+    'מ': 'מֵם',   // Mem
+    'נ': 'נוּן',  // Nun
+    'ס': 'סָמֶךְ', // Samekh
+    'ע': 'עַיִן', // Ayin
+    'פ': 'פֵּא',  // Pey
+    'צ': 'צַדִי', // Tsade
+    'ק': 'קוֹף', // Qof
+    'ר': 'רֵישׁ', // Resh
+    'ש': 'שִׁין', // Shin
+    'ת': 'תָּו'   // Tav
 };
 
 export const GEMATRIA_VALUES: Record<string, number> = {

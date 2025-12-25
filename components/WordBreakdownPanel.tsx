@@ -1,8 +1,9 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WordData, LetterDefinition, AiWordAnalysis } from '../types';
 import { DEFAULT_HEBREW_MAP, SOFIT_MAP } from '../constants';
 import { SwatchIcon, CpuChipIcon, ArrowRightIcon, InformationCircleIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline';
+import { GoogleGenAI, Modality } from "@google/genai";
 
 interface WordBreakdownPanelProps {
   selectedWord: (WordData & { aiDefinition?: AiWordAnalysis }) | null;
@@ -13,6 +14,38 @@ interface WordBreakdownPanelProps {
   verseScanStatus?: 'idle' | 'scanning' | 'complete' | 'error';
   onTriggerExport: () => void;
   onOpenDictionary?: (char?: string) => void;
+  voiceGender: 'male' | 'female';
+  enableTTS: boolean;
+}
+
+// --- Audio Helper Functions ---
+function decodeBase64(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function decodeAudioData(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number,
+  numChannels: number,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
 }
 
 const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({ 
@@ -23,8 +56,115 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   chapter,
   verseScanStatus = 'idle',
   onTriggerExport,
-  onOpenDictionary
+  onOpenDictionary,
+  voiceGender,
+  enableTTS
 }) => {
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+
+  // Initialize Audio Cache if not exists
+  if (!window.AUDIO_CACHE) {
+      window.AUDIO_CACHE = {};
+  }
+
+  // --- TURBO AUDIO: Fetch & Play Logic ---
+  const getAndPlayAudio = async (text: string, forcePlay: boolean) => {
+      if (!text || !enableTTS) return;
+
+      const cacheKey = `${text}_${voiceGender}`;
+
+      // 1. CHECK CACHE
+      if (window.AUDIO_CACHE[cacheKey]) {
+          if (forcePlay) {
+              console.log("⚡ Turbo Mode: Playing from Cache");
+              playFromBase64(window.AUDIO_CACHE[cacheKey]);
+          }
+          return;
+      }
+
+      if (!process.env.API_KEY) {
+          if (forcePlay) alert("API Key missing. Cannot generate audio.");
+          return;
+      }
+
+      // 2. FETCH (If not cached)
+      try {
+          if (forcePlay) setIsAudioPlaying(true);
+          
+          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          const voiceName = voiceGender === 'male' ? 'Puck' : 'Kore';
+
+          const response = await ai.models.generateContent({
+              model: "gemini-2.5-flash-preview-tts",
+              contents: [{ parts: [{ text: text }] }],
+              config: {
+                  responseModalities: [Modality.AUDIO],
+                  speechConfig: {
+                      voiceConfig: {
+                          prebuiltVoiceConfig: { voiceName: voiceName },
+                      },
+                  },
+              },
+          });
+
+          const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+          if (base64Audio) {
+              // 3. CACHE IT
+              window.AUDIO_CACHE[cacheKey] = base64Audio;
+              
+              // 4. PLAY IT (If forced)
+              if (forcePlay) {
+                  await playFromBase64(base64Audio);
+              }
+          }
+      } catch (error) {
+          console.error("TTS Error:", error);
+      } finally {
+          if (forcePlay) setIsAudioPlaying(false);
+      }
+  };
+
+  const playFromBase64 = async (base64: string) => {
+      try {
+        const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
+        const outputNode = outputAudioContext.createGain();
+        
+        const pcmBytes = decodeBase64(base64);
+        const audioBuffer = await decodeAudioData(
+            pcmBytes,
+            outputAudioContext,
+            24000,
+            1
+        );
+        
+        const source = outputAudioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(outputNode);
+        outputNode.connect(outputAudioContext.destination);
+        
+        source.onended = () => {
+            setIsAudioPlaying(false);
+            outputAudioContext.close();
+        };
+        
+        setIsAudioPlaying(true);
+        source.start();
+      } catch (e) {
+          console.error("Audio Decode Error", e);
+          setIsAudioPlaying(false);
+      }
+  };
+
+  // --- EFFECT: Pre-fetch Audio on Word Change ---
+  useEffect(() => {
+      if (selectedWord?.cleanText && enableTTS) {
+          // Silent fetch (background caching)
+          getAndPlayAudio(selectedWord.cleanText, false);
+      }
+  }, [selectedWord?.cleanText, voiceGender, enableTTS]);
+
+
   const getCleanHebrew = (text: string): string => text.replace(/[^\u05D0-\u05EA]/g, "");
   const getLetterBreakdown = (cleanWord: string): LetterDefinition[] => {
     return cleanWord.split('').map(char => {
@@ -62,42 +202,6 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   const strictCleanText = selectedWord ? getCleanHebrew(selectedWord.text) : '';
   const breakdown = selectedWord ? getLetterBreakdown(strictCleanText) : [];
 
-  // Robust Audio Player Logic
-  const handlePlayAudio = () => {
-      if (!selectedWord) return;
-      
-      const synth = window.speechSynthesis;
-      const textToSpeak = selectedWord.cleanText; // Speak Hebrew text
-
-      // Cancel current
-      synth.cancel();
-
-      const speakNow = () => {
-          const utterance = new SpeechSynthesisUtterance(textToSpeak);
-          
-          // Find Hebrew voice
-          const voices = synth.getVoices();
-          const hebrewVoice = voices.find(v => v.lang.includes('he'));
-          
-          if (hebrewVoice) {
-              utterance.voice = hebrewVoice;
-              utterance.lang = "he-IL";
-              utterance.rate = 0.8;
-          } else {
-              // Fallback
-              utterance.lang = "he";
-          }
-          
-          synth.speak(utterance);
-      };
-
-      if (synth.getVoices().length === 0) {
-          synth.addEventListener('voiceschanged', speakNow, { once: true });
-      } else {
-          speakNow();
-      }
-  };
-
   return (
     <div className="flex flex-col animate-fadeIn relative pb-8">
       <div className="text-[10px] tech-font text-[var(--color-accent-secondary)] uppercase tracking-widest mb-4 text-center">Morphological Analysis</div>
@@ -130,18 +234,19 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                         </span>
                         
                         {/* Audio Button - Floating Right */}
-                        {selectedWord && (
+                        {selectedWord && enableTTS && (
                             <button 
-                                onClick={handlePlayAudio}
-                                className="absolute -right-12 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/5 border border-white/20 hover:border-[var(--color-accent-secondary)] hover:bg-[var(--color-accent-secondary)]/20 hover:shadow-[0_0_15px_var(--color-accent-secondary)] text-white hover:text-white transition-all flex items-center justify-center group"
+                                onClick={() => getAndPlayAudio(selectedWord.cleanText, true)}
+                                disabled={isAudioPlaying}
+                                className={`absolute -right-12 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full border transition-all flex items-center justify-center group ${isAudioPlaying ? 'bg-[var(--color-accent-secondary)] border-[var(--color-accent-secondary)] animate-pulse' : 'bg-white/5 border-white/20 hover:border-[var(--color-accent-secondary)] hover:bg-[var(--color-accent-secondary)]/20 hover:shadow-[0_0_15px_var(--color-accent-secondary)] text-white hover:text-white'}`}
                                 title="Listen to Hebrew Pronunciation"
                             >
-                                <SpeakerWaveIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                <SpeakerWaveIcon className={`w-5 h-5 ${isAudioPlaying ? 'text-[#050714]' : 'group-hover:scale-110 transition-transform'}`} />
                             </button>
                         )}
                     </div>
                     
-                    {/* Transliteration Styling: High-Tech Theme Matched Pill */}
+                    {/* Transliteration Styling */}
                     {transliteration && (
                          <div className="mt-3 flex items-center justify-center">
                             <span className="px-3 py-1 bg-[var(--color-accent-primary)]/10 border border-[var(--color-accent-primary)]/30 rounded-full text-[10px] md:text-xs text-[var(--color-accent-secondary)] tech-font uppercase tracking-[0.2em] shadow-[0_0_10px_rgba(0,210,255,0.1)]">

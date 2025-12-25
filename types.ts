@@ -71,5 +71,6 @@ declare global {
     VERSE_DATA: AiChapterData;
     IS_SCANNING: boolean;
     html2canvas: any;
+    AUDIO_CACHE: Record<string, string>; // Global cache for TTS Base64 strings
   }
 }

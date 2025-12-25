@@ -25,7 +25,8 @@ import {
   BookmarkIcon,
   TrashIcon,
   ArrowRightCircleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  SpeakerWaveIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -40,6 +41,7 @@ const THEMES = {
 
 window.VERSE_DATA = {};
 window.IS_SCANNING = false;
+window.AUDIO_CACHE = {}; // Initialize Turbo Cache
 
 const App: React.FC = () => {
   const [selectedBook, setSelectedBook] = useState('Genesis');
@@ -86,6 +88,8 @@ const App: React.FC = () => {
     glowFactor: 100, 
     glassOpacity: 60, 
     showHologram: true,
+    voiceGender: 'female' as 'male' | 'female',
+    enableTTS: true,
   });
 
   const isTouchDevice = () => {
@@ -103,6 +107,8 @@ const App: React.FC = () => {
     const storedFontSize = localStorage.getItem('genesis_font_size');
     const storedHover = localStorage.getItem('genesis_hover_enabled');
     const storedCards = localStorage.getItem('genesis_saved_cards');
+    const storedVoice = localStorage.getItem('genesis_voice_gender');
+    const storedTTS = localStorage.getItem('genesis_enable_tts');
 
     if (storedUser) setUsername(storedUser);
     if (storedTheme && THEMES[storedTheme as keyof typeof THEMES]) {
@@ -116,6 +122,12 @@ const App: React.FC = () => {
         setSavedCards(JSON.parse(storedCards));
       } catch (e) { console.error("Failed to load cards", e); }
     }
+    if (storedVoice === 'male' || storedVoice === 'female') {
+        setSettings(prev => ({...prev, voiceGender: storedVoice as 'male' | 'female'}));
+    }
+    if (storedTTS !== null) {
+        setSettings(prev => ({...prev, enableTTS: storedTTS === 'true'}));
+    }
 
     fetchScripture();
   }, []);
@@ -128,6 +140,11 @@ const App: React.FC = () => {
     root.style.setProperty('--glass-bg', `rgba(10, 14, 41, ${settings.glassOpacity / 100})`);
     root.style.setProperty('--glow-factor', (settings.glowFactor / 100).toString());
   }, [settings]);
+  
+  useEffect(() => {
+      localStorage.setItem('genesis_voice_gender', settings.voiceGender);
+      localStorage.setItem('genesis_enable_tts', String(settings.enableTTS));
+  }, [settings.voiceGender, settings.enableTTS]);
 
   useEffect(() => {
     const maxChapters = BIBLE_DATA[selectedBook] || 50;
@@ -454,7 +471,12 @@ const App: React.FC = () => {
       
       {/* DICTIONARY OVERLAY */}
       {isDictionaryOpen && (
-        <LetterDictionary onClose={() => setIsDictionaryOpen(false)} targetChar={dictionaryTargetChar} />
+        <LetterDictionary 
+            onClose={() => setIsDictionaryOpen(false)} 
+            targetChar={dictionaryTargetChar} 
+            voiceGender={settings.voiceGender} 
+            enableTTS={settings.enableTTS}
+        />
       )}
 
       <header className="hidden md:flex justify-between items-center py-2 px-4 border-b border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 rounded-2xl mb-2 backdrop-blur-sm"><h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}</h1><div className="flex items-center gap-4">{Object.values(scanStatuses).some(s => s === 'scanning') && (<div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]"><span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>Gemini Uplink Active</div>)}<div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">System Online</div></div></header>
@@ -571,8 +593,7 @@ const App: React.FC = () => {
 
               <div className="window-controls">
                 <button onClick={() => toggleMaximize('decoder')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">
-                  {maximizedPanel === 'decoder' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}
-                </button>
+                  {maximizedPanel === 'decoder' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button>
               </div>
             </div>
           </div>
@@ -587,6 +608,8 @@ const App: React.FC = () => {
               verseScanStatus={selectedWord ? scanStatuses[selectedWord.verseIndex] : 'idle'} 
               onTriggerExport={() => setIsExportModalOpen(true)} 
               onOpenDictionary={handleOpenDictionary} 
+              voiceGender={settings.voiceGender}
+              enableTTS={settings.enableTTS}
             />
           </div>
         </section>
@@ -599,51 +622,103 @@ const App: React.FC = () => {
         <button onClick={() => setIsSettingsOpen(true)} className="flex flex-col items-center gap-1 transition-colors text-[#a0a8c0] active:text-[var(--color-accent-secondary)]"><Cog6ToothIcon className="w-6 h-6" /></button>
       </nav>
 
-      <div className={`fixed inset-0 z-[100] transition-all duration-500 ease-in-out ${isSettingsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+      <div className={`fixed inset-0 z-[100] transition-all duration-500 ease-in-out flex items-end md:items-center justify-center ${isSettingsOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
         <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setIsSettingsOpen(false)}></div>
-        <div className={`absolute bottom-0 left-0 right-0 h-[85dvh] md:h-[60dvh] bg-[#050714] border-t border-[var(--color-accent-secondary)] shadow-[0_-10px_40px_rgba(0,0,0,0.9)] transform transition-transform duration-500 ease-[cubic-bezier(0.2,1,0.3,1)] flex flex-col rounded-t-[2.5rem] md:rounded-t-none ${isSettingsOpen ? 'translate-y-0' : 'translate-y-full'}`}>
-            <div className="flex justify-between items-center px-8 py-6 border-b border-white/5 sticky top-0 bg-[#050714] z-20 rounded-t-[2.5rem] md:rounded-t-none">
+        
+        {/* SETTINGS MODAL CONTAINER */}
+        <div className={`
+            bg-[#050714] border-t md:border border-[var(--color-accent-secondary)] shadow-[0_-10px_40px_rgba(0,0,0,0.9)] 
+            flex flex-col 
+            transition-transform duration-500 ease-[cubic-bezier(0.2,1,0.3,1)]
+            
+            /* Mobile: Bottom Sheet */
+            absolute bottom-0 left-0 right-0 
+            h-[85dvh] rounded-t-[2.5rem] 
+            ${isSettingsOpen ? 'translate-y-0' : 'translate-y-full'}
+
+            /* Desktop: Centered Modal override */
+            md:relative md:inset-auto md:transform-none
+            md:w-[90vw] md:max-w-6xl md:h-[80vh] md:rounded-3xl
+        `}>
+            
+            <div className="flex justify-between items-center px-8 py-6 border-b border-white/5 sticky top-0 bg-[#050714] z-20 rounded-t-[2.5rem] md:rounded-t-3xl">
                 <div className="flex items-center gap-3"><Cog6ToothIcon className="w-6 h-6 text-[var(--color-accent-secondary)] animate-spin-slow" /><h2 className="cinzel-font text-xl text-white tracking-widest">Configuration</h2></div>
                 <button onClick={() => setIsSettingsOpen(false)} className="p-3 bg-white/5 hover:bg-[var(--color-accent-primary)]/20 rounded-full text-white transition-colors"><XMarkIcon className="w-6 h-6" /></button>
             </div>
-            <div className="flex-grow overflow-y-auto px-6 py-8 md:p-10 grid grid-cols-1 md:grid-cols-3 gap-8 pb-32 md:pb-10">
-                <div className="glass-panel p-8 rounded-3xl relative overflow-hidden group border-white/5 bg-white/5">
-                   <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-accent-secondary)]"></div>
-                   <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-8"><SwatchIcon className="w-4 h-4" /> Prism Core</h3>
-                   <div className="grid grid-cols-2 gap-4">
-                      {Object.entries(THEMES).map(([key, theme]) => (
-                        <button key={key} onClick={() => setSettings(s => ({...s, theme: key as any}))} className={`relative h-24 md:h-20 rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-1 ${settings.theme === key ? 'border-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'border-transparent opacity-50 hover:opacity-100'}`} style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)` }}>
-                           <span className="relative z-10 font-bold text-white text-xs uppercase tracking-wider">{theme.name.split(' ')[1]}</span>
-                           {settings.theme === key && <div className="absolute inset-0 bg-white/10"></div>}
-                        </button>
-                      ))}
-                   </div>
-                </div>
-                <div className="glass-panel p-8 rounded-3xl relative overflow-hidden border-white/5 bg-white/5">
-                   <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-accent-secondary)]"></div>
-                   <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-10"><AdjustmentsHorizontalIcon className="w-4 h-4" /> Visual FX</h3>
-                   <div className="space-y-12">
-                      <div className="space-y-4">
-                        <div className="flex justify-between text-xs text-[#a0a8c0] uppercase tracking-widest"><span>Glow</span><span className="text-[var(--color-accent-secondary)]">{settings.glowFactor}%</span></div>
-                        <input type="range" min="0" max="200" value={settings.glowFactor} onChange={(e) => setSettings(s => ({...s, glowFactor: parseInt(e.target.value)}))} className="w-full h-2 bg-black/40 rounded-lg appearance-none cursor-pointer accent-[var(--color-accent-secondary)]" />
+            
+            <div className="flex-grow overflow-y-auto px-6 py-8 md:p-10 pb-32 md:pb-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                  {/* LEFT COLUMN: Prism & Audio */}
+                  <div className="flex flex-col gap-6">
+                      {/* 1. PRISM CORE */}
+                      <div className="glass-panel p-8 rounded-3xl relative bg-white/5">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-accent-secondary)]"></div>
+                        <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6"><SwatchIcon className="w-4 h-4" /> Prism Core</h3>
+                        
+                        {/* Explicit Scroll Area for Colors */}
+                        <div className="max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="grid grid-cols-2 gap-4">
+                                {Object.entries(THEMES).map(([key, theme]) => (
+                                  <button key={key} onClick={() => setSettings(s => ({...s, theme: key as any}))} className={`relative h-24 rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-1 ${settings.theme === key ? 'border-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'border-transparent opacity-50 hover:opacity-100'}`} style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)` }}>
+                                    <span className="relative z-10 font-bold text-white text-xs uppercase tracking-wider">{theme.name.split(' ')[1]}</span>
+                                    {settings.theme === key && <div className="absolute inset-0 bg-white/10"></div>}
+                                  </button>
+                                ))}
+                            </div>
+                        </div>
                       </div>
-                      <div className="space-y-4">
-                        <div className="flex justify-between text-xs text-[#a0a8c0] uppercase tracking-widest"><span>Opacity</span><span className="text-[var(--color-accent-secondary)]">{settings.glassOpacity}%</span></div>
-                        <input type="range" min="20" max="95" value={settings.glassOpacity} onChange={(e) => setSettings(s => ({...s, glassOpacity: parseInt(e.target.value)}))} className="w-full h-2 bg-black/40 rounded-lg appearance-none cursor-pointer accent-[var(--color-accent-secondary)]" />
+
+                      {/* 2. AUDIO INTERFACE (SEPARATED) */}
+                      <div className="glass-panel p-8 rounded-3xl relative bg-white/5">
+                           <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-accent-secondary)]"></div>
+                           <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6"><SpeakerWaveIcon className="w-4 h-4" /> Audio Interface</h3>
+                           
+                           {/* Enable Toggle */}
+                           <div className="flex items-center justify-between p-5 bg-black/30 rounded-2xl border border-white/5 mb-4">
+                                <span className="text-xs text-[#a0a8c0] uppercase tracking-widest">Enable Text-to-Speech</span>
+                                <button onClick={() => setSettings(s => ({...s, enableTTS: !s.enableTTS}))} className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 ${settings.enableTTS ? 'bg-[var(--color-accent-secondary)]' : 'bg-white/10'}`}><div className={`w-6 h-6 rounded-full bg-white shadow-lg transform transition-transform duration-300 ${settings.enableTTS ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
+                           </div>
+
+                           <div className="flex items-center justify-between p-5 bg-black/30 rounded-2xl border border-white/5">
+                             <span className="text-xs text-[#a0a8c0] uppercase tracking-widest">Voice Synthesis</span>
+                             <div className="flex bg-black/50 rounded-full p-1 border border-white/10">
+                                <button onClick={() => setSettings(s => ({...s, voiceGender: 'female'}))} className={`px-4 py-2 rounded-full text-[10px] uppercase tracking-wider transition-all ${settings.voiceGender === 'female' ? 'bg-[var(--color-accent-secondary)] text-[#050714] font-bold' : 'text-white/50 hover:text-white'}`}>Fem</button>
+                                <button onClick={() => setSettings(s => ({...s, voiceGender: 'male'}))} className={`px-4 py-2 rounded-full text-[10px] uppercase tracking-wider transition-all ${settings.voiceGender === 'male' ? 'bg-[var(--color-accent-secondary)] text-[#050714] font-bold' : 'text-white/50 hover:text-white'}`}>Male</button>
+                             </div>
+                          </div>
                       </div>
-                   </div>
-                </div>
-                <div className="glass-panel p-8 rounded-3xl relative overflow-hidden border-white/5 bg-white/5">
-                   <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-accent-secondary)]"></div>
-                   <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-8"><CpuChipIcon className="w-4 h-4" /> Hardware</h3>
-                   <div className="space-y-4">
-                      <div className="flex items-center justify-between p-5 bg-black/30 rounded-2xl border border-white/5">
-                         <span className="text-xs text-[#a0a8c0] uppercase tracking-widest">Hologram Projector</span>
-                         <button onClick={() => setSettings(s => ({...s, showHologram: !s.showHologram}))} className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 ${settings.showHologram ? 'bg-[var(--color-accent-secondary)]' : 'bg-white/10'}`}><div className={`w-6 h-6 rounded-full bg-white shadow-lg transform transition-transform duration-300 ${settings.showHologram ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
-                      </div>
-                   </div>
+                  </div>
+
+                  {/* RIGHT COLUMN: Visual Engineering */}
+                  <div className="glass-panel p-8 rounded-3xl relative bg-white/5 h-fit">
+                       <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-accent-secondary)]"></div>
+                       <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-8"><AdjustmentsHorizontalIcon className="w-4 h-4" /> Visual Engineering</h3>
+                       
+                       {/* Explicit Scroll Area for FX */}
+                       <div className="max-h-[450px] overflow-y-auto pr-2 custom-scrollbar space-y-12">
+                          <div className="space-y-4">
+                            <div className="flex justify-between text-xs text-[#a0a8c0] uppercase tracking-widest"><span>Glow Intensity</span><span className="text-[var(--color-accent-secondary)]">{settings.glowFactor}%</span></div>
+                            <input type="range" min="0" max="200" value={settings.glowFactor} onChange={(e) => setSettings(s => ({...s, glowFactor: parseInt(e.target.value)}))} className="w-full h-2 bg-black/40 rounded-lg appearance-none cursor-pointer accent-[var(--color-accent-secondary)]" />
+                          </div>
+                          <div className="space-y-4">
+                            <div className="flex justify-between text-xs text-[#a0a8c0] uppercase tracking-widest"><span>Glass Opacity</span><span className="text-[var(--color-accent-secondary)]">{settings.glassOpacity}%</span></div>
+                            <input type="range" min="20" max="95" value={settings.glassOpacity} onChange={(e) => setSettings(s => ({...s, glassOpacity: parseInt(e.target.value)}))} className="w-full h-2 bg-black/40 rounded-lg appearance-none cursor-pointer accent-[var(--color-accent-secondary)]" />
+                          </div>
+
+                          <div className="pt-8 border-t border-white/5">
+                              <h4 className="flex items-center gap-2 text-white/50 font-bold uppercase tracking-widest text-[10px] mb-6"><CpuChipIcon className="w-3 h-3" /> Hardware Acceleration</h4>
+                              <div className="flex items-center justify-between p-5 bg-black/30 rounded-2xl border border-white/5">
+                                 <span className="text-xs text-[#a0a8c0] uppercase tracking-widest">Hologram Projector</span>
+                                 <button onClick={() => setSettings(s => ({...s, showHologram: !s.showHologram}))} className={`w-14 h-8 rounded-full p-1 transition-colors duration-300 ${settings.showHologram ? 'bg-[var(--color-accent-secondary)]' : 'bg-white/10'}`}><div className={`w-6 h-6 rounded-full bg-white shadow-lg transform transition-transform duration-300 ${settings.showHologram ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
+                              </div>
+                          </div>
+                       </div>
+                  </div>
+
                 </div>
             </div>
+            
             <div className="p-8 border-t border-white/5 text-center mt-auto md:mt-0 bg-[#050714]"><button onClick={() => setIsSettingsOpen(false)} className="md:hidden w-full electric-gradient py-5 rounded-full text-sm font-bold tracking-widest uppercase mb-4">Close Configurator</button><span className="text-[10px] text-white/20 uppercase tracking-[0.6em]">System Architecture v3.0</span></div>
         </div>
       </div>
