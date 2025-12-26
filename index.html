@@ -725,9 +725,53 @@
           border-radius: 18px 18px 18px 2px; /* Standard Chat Bubble Left */
           align-self: flex-start;
           max-width: 85%; 
-          line-height: 1.5; font-size: 0.95rem;
           border: 1px solid rgba(255,255,255,0.05);
           box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          overflow-wrap: break-word; /* Prevents overflow */
+      }
+      
+      /* --- MARKDOWN STYLES FOR AI MESSAGE --- */
+      .ai-message .markdown-content { 
+          display: block; /* CRITICAL FIX: Removed flex to prevent vertical stacking of words */
+          font-size: 0.95rem;
+          line-height: 1.6;
+          color: #e2e8f0;
+      }
+      .ai-message strong { color: #fff; font-weight: 700; }
+      .ai-message em { font-style: italic; color: #a0a8c0; }
+      
+      /* Compact Block Elements */
+      .ai-message p { margin: 0 0 10px 0; }
+      .ai-message p:last-child { margin-bottom: 0; }
+      
+      .ai-message h3, .ai-message h4 { 
+          font-weight: 700; 
+          color: white; 
+          margin: 16px 0 8px 0; 
+          text-transform: uppercase; 
+          font-size: 0.85rem; 
+          letter-spacing: 0.1em; 
+          border-bottom: 1px solid rgba(255,255,255,0.1); 
+          padding-bottom: 4px; 
+      }
+      
+      .ai-message blockquote { border-left: 3px solid var(--color-accent-secondary); padding-left: 10px; font-style: italic; color: rgba(255,255,255,0.7); margin: 10px 0; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 0 4px 4px 0; }
+
+      /* List Styling for Aligned Bullets */
+      .md-list-item {
+          display: flex;
+          align-items: flex-start;
+          margin-bottom: 6px;
+      }
+      .md-list-item .bullet {
+          margin-right: 8px;
+          color: var(--color-accent-secondary);
+          font-weight: bold;
+          flex-shrink: 0;
+          margin-top: 1px; /* Visual optical alignment */
+      }
+      .md-list-item .content {
+          flex: 1;
       }
 
       .user-message {

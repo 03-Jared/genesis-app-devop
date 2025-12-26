@@ -51,6 +51,39 @@ window.VERSE_DATA = {};
 window.IS_SCANNING = false;
 window.AUDIO_CACHE = {}; // Initialize Turbo Cache
 
+// --- ROBUST MARKDOWN PARSER ---
+function parseMarkdown(text: string) {
+    if (!text) return "";
+    let html = text;
+
+    // 1. Headers (Convert ### or ## to <h3>)
+    html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gm, '<h3>$1</h3>');
+
+    // 2. Bold (**text**)
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // 3. Italic (*text*) - careful not to hit lists
+    // Matches *text* where the first * is NOT at the start of a line followed by a space (which would be a bullet)
+    html = html.replace(/([^\*]|^)\*(?!\s)(.*?)\*/g, '$1<em>$2</em>');
+
+    // 4. Lists (Manual Flexbox approach for perfect alignment)
+    // Bullet points: "* item" or "- item"
+    html = html.replace(/^\s*[\-\*]\s+(.*$)/gm, '<div class="md-list-item"><span class="bullet">•</span><span class="content">$1</span></div>');
+    
+    // Numbered lists: "1. item"
+    html = html.replace(/^\s*(\d+\.)\s+(.*$)/gm, '<div class="md-list-item"><span class="bullet">$1</span><span class="content">$2</span></div>');
+
+    // 5. Line Breaks
+    // Eat newline immediately after a block element (header or list item div) so we don't get double spacing
+    html = html.replace(/(\<\/h3\>|\<\/div\>)\n/g, '$1'); 
+    
+    // Convert remaining newlines to <br>
+    html = html.replace(/\n/g, '<br />');
+
+    return html;
+}
+
 const App: React.FC = () => {
   const [selectedBook, setSelectedBook] = useState('Genesis');
   const [selectedChapter, setSelectedChapter] = useState(1);
@@ -739,7 +772,13 @@ const App: React.FC = () => {
 
                         {msg.parts ? (
                             msg.parts.map((part, pIdx) => {
-                                if (part.type === 'text') return <span key={pIdx}>{part.content}</span>;
+                                if (part.type === 'text') return (
+                                    <div 
+                                        key={pIdx} 
+                                        className="markdown-content" 
+                                        dangerouslySetInnerHTML={{ __html: parseMarkdown(part.content) }} 
+                                    />
+                                );
                                 if (part.type === 'button') return (
                                     <button 
                                         key={pIdx} 
@@ -752,7 +791,10 @@ const App: React.FC = () => {
                                 return null;
                             })
                         ) : (
-                            msg.text
+                            <div 
+                                className="markdown-content" 
+                                dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.text) }} 
+                            />
                         )}
                     </div>
                 ))}
