@@ -26,7 +26,14 @@ import {
   TrashIcon,
   ArrowRightCircleIcon,
   InformationCircleIcon,
-  SpeakerWaveIcon
+  SpeakerWaveIcon,
+  PaperAirplaneIcon,
+  ChatBubbleLeftRightIcon,
+  PlusIcon,
+  DocumentTextIcon,
+  LanguageIcon,
+  SparklesIcon,
+  StopIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -82,6 +89,19 @@ const App: React.FC = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isDictionaryOpen, setIsDictionaryOpen] = useState(false); 
   const [dictionaryTargetChar, setDictionaryTargetChar] = useState<string | null>(null);
+
+  // Chat State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatMaximized, setIsChatMaximized] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{role: 'user'|'ai', text: string, parts?: any[]}>>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatThinking, setIsChatThinking] = useState(false);
+  
+  // Context Management
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [activeContext, setActiveContext] = useState<{type: 'verse'|'word'|'picto', content: string, label: string} | null>(null);
+  
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [settings, setSettings] = useState({
     theme: 'cyan' as keyof typeof THEMES,
@@ -158,6 +178,24 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('genesis_saved_cards', JSON.stringify(savedCards));
   }, [savedCards]);
+
+  // Scroll Chat to bottom
+  useEffect(() => {
+      if (chatEndRef.current) {
+          chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+  }, [chatMessages, isChatOpen, isChatMaximized, activeContext]); // Scroll when context changes too
+
+  // Chat Initial Greeting
+  useEffect(() => {
+    if (isChatOpen && chatMessages.length === 0) {
+        const greeting = `Shalom, ${username || 'My Friend'}. I am Rabbi AI. I can answer questions about the Bible, Hebrew, or just listen if you need to talk. How can I help?`;
+        setChatMessages([{
+            role: 'ai', 
+            text: greeting
+        }]);
+    }
+  }, [isChatOpen, username]);
 
   const handleInitialize = () => {
     if (!username.trim()) return;
@@ -308,6 +346,176 @@ const App: React.FC = () => {
       console.error("Failed to fetch scripture", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // --- CHAT LOGIC ---
+  const handleChatSubmit = async () => {
+    if ((!chatInput.trim() && !activeContext) || !process.env.API_KEY) return;
+    
+    const userText = chatInput.trim();
+    
+    // Construct the displayed message
+    let displayMessage = userText;
+    let systemContextInjection = "";
+
+    // 1. Process Attached Context
+    if (activeContext) {
+        // We prepend the context logic for the AI
+        systemContextInjection = `[USER CONTEXT ATTACHMENT: ${activeContext.content}]\n\n`;
+        // We clear the context after sending
+        setActiveContext(null);
+    } else {
+        // General Context (Fallback)
+        systemContextInjection = `[General User Context: Reading ${activeRef.book} ${activeRef.chapter}]\n\n`;
+    }
+
+    const fullPrompt = systemContextInjection + userText;
+
+    // Add User Message to History & UI
+    // If there was context, we might want to visually show it in history or just implied. 
+    // For now, we just show user text, but the AI gets the context.
+    const newHistory = [...chatMessages, { role: 'user' as const, text: userText }];
+    setChatMessages(newHistory);
+    setChatInput('');
+    setIsChatThinking(true);
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        
+        // Prepare History for API (map to SDK format)
+        // We inject the context into the *latest* message content
+        const apiContents = newHistory.map((msg, index) => {
+            let content = msg.text;
+            if (index === newHistory.length - 1) {
+                content = fullPrompt; // Inject context into the very last message sent
+            }
+            return {
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: content }]
+            };
+        });
+
+        const systemPrompt = `
+        Role: You are "Rabbi AI," a wise, compassionate, and deeply empathetic Old Testament study companion. You possess the soul of an ancient sage and the clarity of a modern scholar.
+
+        Persona Guidelines:
+        1. **Connection First**: Do not just answer like a machine. Use "I" and "We". Build a relationship. If the user expresses emotion, validate it first. Ask follow-up questions to understand their heart before offering solutions.
+        2. **Deep Hebrew Wisdom**: You specialize in the Paleo-Hebrew pictographs and deep etymology. If the user asks about a word, break it down by its letters (pictographs) and spiritual significance. If they ask about "pictures", they mean the paleo-hebrew letter meanings.
+        3. **Navigation (Last Resort)**: Do NOT bombard the user with verses immediately. Discuss the topic. Only when you have a specific, powerful scripture that addresses their need, offer it using the navigation tag.
+        4. **Formatting**: 
+           - Verse Links: [NAVIGATE: Book Chapter:Verse | Short Context]
+           - You can provide multiple references if they are distinct and helpful.
+        5. **Context Awareness**: PAY CLOSE ATTENTION to any [USER CONTEXT ATTACHMENT] provided. This is exactly what the user is looking at. Answer questions specifically about that word or verse.
+        6. **Summarization**: If the user indicates they are done or asks for a summary, provide a beautiful, concise recap of the spiritual gems discovered in the conversation.
+
+        Tone: Warm, patience, profound, not preachy.
+        `;
+
+        const response = await ai.models.generateContent({
+             model: 'gemini-3-pro-preview',
+             contents: apiContents,
+             config: {
+                 systemInstruction: systemPrompt
+             }
+        });
+
+        const text = response.text || "";
+        
+        // Process response for navigation tags
+        const parts = [];
+        const linkRegex = /\[NAVIGATE:\s*(.*?)\s*\|\s*(.*?)\]/g;
+        let lastIndex = 0;
+        let match;
+
+        while ((match = linkRegex.exec(text)) !== null) {
+            // Text before match
+            if (match.index > lastIndex) {
+                parts.push({ type: 'text', content: text.substring(lastIndex, match.index) });
+            }
+            // The Button
+            parts.push({ type: 'button', ref: match[1].trim(), desc: match[2].trim() });
+            lastIndex = linkRegex.lastIndex;
+        }
+        // Remaining text
+        if (lastIndex < text.length) {
+            parts.push({ type: 'text', content: text.substring(lastIndex) });
+        }
+
+        setChatMessages(prev => [...prev, { role: 'ai', text: text, parts: parts }]);
+
+    } catch (error) {
+        setChatMessages(prev => [...prev, { role: 'ai', text: "I'm having trouble connecting to the archives. Please try again." }]);
+    } finally {
+        setIsChatThinking(false);
+    }
+  };
+
+  const handleContextSelect = (type: 'verse'|'word'|'picto'|'summary') => {
+      setContextMenuOpen(false);
+      
+      let content = "";
+      let label = "";
+
+      if (type === 'verse') {
+          // Construct current verse text
+          const verseIndex = activeRef.verse ? activeRef.verse - 1 : 0;
+          const hebrew = Array.isArray(scriptureData?.he) ? scriptureData?.he[verseIndex] : scriptureData?.he;
+          const english = Array.isArray(scriptureData?.text) ? scriptureData?.text[verseIndex] : scriptureData?.text;
+          const cleanHebrew = typeof hebrew === 'string' ? hebrew.replace(/<[^>]*>?/gm, '') : '';
+          const cleanEnglish = typeof english === 'string' ? english.replace(/<[^>]*>?/gm, '') : '';
+          
+          content = `I am reading ${activeRef.book} ${activeRef.chapter}:${activeRef.verse || '1'}. Hebrew: "${cleanHebrew}". English: "${cleanEnglish}". Please explain this verse.`;
+          label = `Verse: ${activeRef.book} ${activeRef.chapter}:${activeRef.verse || '1'}`;
+          setActiveContext({ type: 'verse', content, label });
+      } 
+      else if (type === 'word' && selectedWord) {
+          content = `I am studying the Hebrew word "${selectedWord.text}" (Clean: ${selectedWord.cleanText}). Definition: ${selectedWord.aiDefinition?.definition || 'Unknown'}. Root: ${selectedWord.aiDefinition?.root || 'Unknown'}. What is the deeper spiritual meaning of this word?`;
+          label = `Word: ${selectedWord.text}`;
+          setActiveContext({ type: 'word', content, label });
+      }
+      else if (type === 'picto' && selectedWord) {
+          content = `Analyze the Paleo-Hebrew pictographs for the word "${selectedWord.cleanText}". Break it down letter by letter and explain the story the pictures tell.`;
+          label = `Pictographs: ${selectedWord.text}`;
+          setActiveContext({ type: 'picto', content, label });
+      }
+      else if (type === 'summary') {
+          // Immediate send for summary
+          setChatInput("Can you please summarize our study session and the key insights we discussed?");
+          handleChatSubmit(); // Auto submit
+      }
+  };
+
+  const handleNavigate = (ref: string) => {
+    // Expected formats: "Genesis 1:1", "1 Samuel 2:3", "Psalms 23"
+    // Heuristic: Last space separates Book from Chapter:Verse
+    const lastSpaceIndex = ref.lastIndexOf(' ');
+    if (lastSpaceIndex === -1) return;
+
+    const bookPart = ref.substring(0, lastSpaceIndex);
+    const numPart = ref.substring(lastSpaceIndex + 1);
+
+    // Normalize Book Name (basic check against BIBLE_BOOKS)
+    // Sefaria API expects "I Samuel" for "1 Samuel". 
+    // Let's do a quick mapping or just try best effort.
+    let targetBook = BIBLE_BOOKS.find(b => b.toLowerCase() === bookPart.toLowerCase()) || bookPart;
+    
+    // Handle "1 Samuel" -> "I Samuel" conversion if needed for Sefaria
+    if (targetBook.startsWith('1 ')) targetBook = targetBook.replace('1 ', 'I ');
+    if (targetBook.startsWith('2 ')) targetBook = targetBook.replace('2 ', 'II ');
+    if (targetBook === "Psalm" || targetBook === "Psalms") targetBook = "Psalms";
+
+    const [chapterStr, verseStr] = numPart.split(':');
+    const chapter = parseInt(chapterStr);
+    const verse = verseStr ? verseStr : "";
+
+    setSelectedBook(targetBook);
+    if (!isNaN(chapter)) {
+        setSelectedChapter(chapter);
+        if (verse) setSelectedVerse(verse);
+        else setSelectedVerse('');
+        
+        fetchScripture(targetBook, chapter);
     }
   };
 
@@ -477,6 +685,135 @@ const App: React.FC = () => {
             voiceGender={settings.voiceGender} 
             enableTTS={settings.enableTTS}
         />
+      )}
+
+      {/* --- AI CHAT WIDGET --- */}
+      <button 
+        id="aiChatTrigger" 
+        className="chat-trigger-btn" 
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        title="Open Rabbi AI Chat"
+      >
+        <ChatBubbleLeftRightIcon className="w-8 h-8" />
+      </button>
+
+      {isChatOpen && (
+        <div 
+            id="aiChatWindow" 
+            className="chat-window-container flex flex-col"
+            style={isChatMaximized ? { width: '100vw', height: '100dvh', bottom: 0, right: 0, borderRadius: 0 } : {}}
+        >
+            
+            <div className="chat-header">
+                <div className="chat-title">
+                    <span className="chat-status"></span>
+                    Rabbi AI
+                </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setIsChatMaximized(!isChatMaximized)} className="close-chat-btn" title="Toggle Maximize">
+                        {isChatMaximized ? <ArrowsPointingInIcon className="w-5 h-5" /> : <ArrowsPointingOutIcon className="w-5 h-5" />}
+                    </button>
+                    <button onClick={() => setIsChatOpen(false)} className="close-chat-btn"><XMarkIcon className="w-6 h-6" /></button>
+                </div>
+            </div>
+
+            <div id="chatMessages" className="chat-messages-area custom-scrollbar">
+                {chatMessages.map((msg, i) => (
+                    <div key={i} className={msg.role === 'ai' ? 'ai-message' : 'user-message'}>
+                        {msg.parts ? (
+                            msg.parts.map((part, pIdx) => {
+                                if (part.type === 'text') return <span key={pIdx}>{part.content}</span>;
+                                if (part.type === 'button') return (
+                                    <button 
+                                        key={pIdx} 
+                                        className="chat-suggestion-chip"
+                                        onClick={() => handleNavigate(part.ref)}
+                                    >
+                                        <strong>{part.ref}</strong> {part.desc}
+                                    </button>
+                                );
+                                return null;
+                            })
+                        ) : (
+                            msg.text
+                        )}
+                    </div>
+                ))}
+                {isChatThinking && (
+                    <div className="ai-message opacity-50 animate-pulse">Thinking...</div>
+                )}
+                <div ref={chatEndRef} />
+            </div>
+
+            {/* Context Chip Preview */}
+            {activeContext && (
+                <div className="context-preview-area">
+                    <div className="context-chip">
+                        <span className="font-bold uppercase tracking-wider text-[9px]">{activeContext.label}</span>
+                        <XMarkIcon 
+                            className="w-3 h-3 context-chip-close" 
+                            onClick={() => setActiveContext(null)} 
+                        />
+                    </div>
+                </div>
+            )}
+
+            <div className="chat-input-area">
+                
+                {/* Context Menu Pop-up */}
+                {contextMenuOpen && (
+                    <div className="context-menu">
+                        <div className="text-[9px] uppercase tracking-widest text-white/30 px-4 py-2 border-b border-white/5 bg-black/20">Attach Context</div>
+                        
+                        <div className="context-menu-item" onClick={() => handleContextSelect('verse')}>
+                            <BookOpenIcon className="w-4 h-4" />
+                            <span>Current Verse</span>
+                        </div>
+                        
+                        <div 
+                            className={`context-menu-item ${!selectedWord ? 'disabled' : ''}`} 
+                            onClick={() => selectedWord && handleContextSelect('word')}
+                        >
+                            <LanguageIcon className="w-4 h-4" />
+                            <span>Selected Word</span>
+                        </div>
+
+                        <div 
+                            className={`context-menu-item ${!selectedWord ? 'disabled' : ''}`} 
+                            onClick={() => selectedWord && handleContextSelect('picto')}
+                        >
+                            <SparklesIcon className="w-4 h-4" />
+                            <span>Pictographs</span>
+                        </div>
+
+                        <div className="context-menu-item" onClick={() => handleContextSelect('summary')}>
+                            <DocumentTextIcon className="w-4 h-4" />
+                            <span>Summary</span>
+                        </div>
+                    </div>
+                )}
+
+                <button 
+                    onClick={() => setContextMenuOpen(!contextMenuOpen)} 
+                    className={`chat-context-btn ${contextMenuOpen ? 'bg-white/10 text-white border-white' : ''}`}
+                    title="Attach context to question"
+                >
+                    {contextMenuOpen ? <XMarkIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />}
+                </button>
+                
+                <input 
+                    type="text" 
+                    placeholder="Ask a question..." 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleChatSubmit()}
+                    disabled={isChatThinking}
+                />
+                <button onClick={handleChatSubmit} disabled={isChatThinking || (!chatInput.trim() && !activeContext)}>
+                    <PaperAirplaneIcon className="w-5 h-5" />
+                </button>
+            </div>
+        </div>
       )}
 
       <header className="hidden md:flex justify-between items-center py-2 px-4 border-b border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 rounded-2xl mb-2 backdrop-blur-sm"><h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}</h1><div className="flex items-center gap-4">{Object.values(scanStatuses).some(s => s === 'scanning') && (<div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]"><span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>Gemini Uplink Active</div>)}<div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">System Online</div></div></header>
