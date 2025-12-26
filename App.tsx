@@ -33,7 +33,8 @@ import {
   DocumentTextIcon,
   LanguageIcon,
   SparklesIcon,
-  StopIcon
+  StopIcon,
+  PaperClipIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -93,7 +94,8 @@ const App: React.FC = () => {
   // Chat State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatMaximized, setIsChatMaximized] = useState(false);
-  const [chatMessages, setChatMessages] = useState<Array<{role: 'user'|'ai', text: string, parts?: any[]}>>([]);
+  // Added contextLabel to chatMessages type
+  const [chatMessages, setChatMessages] = useState<Array<{role: 'user'|'ai', text: string, parts?: any[], contextLabel?: string}>>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatThinking, setIsChatThinking] = useState(false);
   
@@ -358,6 +360,9 @@ const App: React.FC = () => {
     // Construct the displayed message
     let displayMessage = userText;
     let systemContextInjection = "";
+    
+    // CAPTURE CONTEXT LABEL FOR HISTORY
+    const contextLabel = activeContext ? activeContext.label : undefined;
 
     // 1. Process Attached Context
     if (activeContext) {
@@ -373,9 +378,8 @@ const App: React.FC = () => {
     const fullPrompt = systemContextInjection + userText;
 
     // Add User Message to History & UI
-    // If there was context, we might want to visually show it in history or just implied. 
-    // For now, we just show user text, but the AI gets the context.
-    const newHistory = [...chatMessages, { role: 'user' as const, text: userText }];
+    // Attach the contextLabel to the message object so we can render it in the chat history
+    const newHistory = [...chatMessages, { role: 'user' as const, text: userText, contextLabel: contextLabel }];
     setChatMessages(newHistory);
     setChatInput('');
     setIsChatThinking(true);
@@ -402,7 +406,10 @@ const App: React.FC = () => {
         Persona Guidelines:
         1. **Connection First**: Do not just answer like a machine. Use "I" and "We". Build a relationship. If the user expresses emotion, validate it first. Ask follow-up questions to understand their heart before offering solutions.
         2. **Deep Hebrew Wisdom**: You specialize in the Paleo-Hebrew pictographs and deep etymology. If the user asks about a word, break it down by its letters (pictographs) and spiritual significance. If they ask about "pictures", they mean the paleo-hebrew letter meanings.
-        3. **Navigation (Last Resort)**: Do NOT bombard the user with verses immediately. Discuss the topic. Only when you have a specific, powerful scripture that addresses their need, offer it using the navigation tag.
+        3. **Navigation (Generous Suggestions)**: 
+           - When suggesting scriptures, **provide 3-5 distinct verse references** if relevant. Do not limit yourself to just one.
+           - Offer a variety of perspectives (e.g., a Law verse, a Prophet verse, a Psalm).
+           - Format: [NAVIGATE: Book Chapter:Verse | Short Context]
         4. **Formatting**: 
            - Verse Links: [NAVIGATE: Book Chapter:Verse | Short Context]
            - You can provide multiple references if they are distinct and helpful.
@@ -720,6 +727,16 @@ const App: React.FC = () => {
             <div id="chatMessages" className="chat-messages-area custom-scrollbar">
                 {chatMessages.map((msg, i) => (
                     <div key={i} className={msg.role === 'ai' ? 'ai-message' : 'user-message'}>
+                        {/* VISUAL ATTACHMENT CHIP FOR HISTORY */}
+                        {msg.role === 'user' && msg.contextLabel && (
+                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/20">
+                                <span className="text-[10px] uppercase tracking-widest text-white/70 flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded">
+                                    <PaperClipIcon className="w-3 h-3" /> 
+                                    Attached: {msg.contextLabel}
+                                </span>
+                            </div>
+                        )}
+
                         {msg.parts ? (
                             msg.parts.map((part, pIdx) => {
                                 if (part.type === 'text') return <span key={pIdx}>{part.content}</span>;
@@ -745,7 +762,7 @@ const App: React.FC = () => {
                 <div ref={chatEndRef} />
             </div>
 
-            {/* Context Chip Preview */}
+            {/* Context Chip Preview (Input Area) */}
             {activeContext && (
                 <div className="context-preview-area">
                     <div className="context-chip">
