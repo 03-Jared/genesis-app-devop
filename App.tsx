@@ -51,34 +51,34 @@ window.VERSE_DATA = {};
 window.IS_SCANNING = false;
 window.AUDIO_CACHE = {}; // Initialize Turbo Cache
 
-// --- ROBUST MARKDOWN PARSER ---
+// --- ROBUST MARKDOWN PARSER (FIXED) ---
 function parseMarkdown(text: string) {
     if (!text) return "";
     let html = text;
 
-    // 1. Headers (Convert ### or ## to <h3>)
+    // 1. Headers (### Heading)
     html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
     html = html.replace(/^## (.*$)/gm, '<h3>$1</h3>');
 
-    // 2. Bold (**text**)
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-    // 3. Italic (*text*) - careful not to hit lists
-    // Matches *text* where the first * is NOT at the start of a line followed by a space (which would be a bullet)
-    html = html.replace(/([^\*]|^)\*(?!\s)(.*?)\*/g, '$1<em>$2</em>');
-
-    // 4. Lists (Manual Flexbox approach for perfect alignment)
-    // Bullet points: "* item" or "- item"
+    // 2. Lists (Prioritize lists over italics to fix 'orphaned asterisk')
+    // Bullet points: "* item" or "- item" at start of line
     html = html.replace(/^\s*[\-\*]\s+(.*$)/gm, '<div class="md-list-item"><span class="bullet">•</span><span class="content">$1</span></div>');
     
     // Numbered lists: "1. item"
     html = html.replace(/^\s*(\d+\.)\s+(.*$)/gm, '<div class="md-list-item"><span class="bullet">$1</span><span class="content">$2</span></div>');
 
-    // 5. Line Breaks
-    // Eat newline immediately after a block element (header or list item div) so we don't get double spacing
+    // 3. Bold (**text**)
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // 4. Italic (*text*) 
+    // Now that lists are handled, we can safely replace remaining * wrappers
+    html = html.replace(/\*([^\s*].*?)\*/g, '<em>$1</em>');
+
+    // 5. Line Breaks & Cleanup
+    // Remove newlines immediately after block elements to prevent double gaps
     html = html.replace(/(\<\/h3\>|\<\/div\>)\n/g, '$1'); 
     
-    // Convert remaining newlines to <br>
+    // Convert remaining newlines to breaks
     html = html.replace(/\n/g, '<br />');
 
     return html;
@@ -695,20 +695,88 @@ const App: React.FC = () => {
 
   if (showLanding) {
     return (
-      <div className="landing-mode p-4">
-        {settings.showHologram && (
-          <div className="scene-3d mb-8 md:mb-12 relative z-10">
-            <div className="cross-group">
-                <div className="face face-composite front"></div><div className="face face-composite back"></div><div className="side side-v-top"></div><div className="side side-v-bottom"></div><div className="side side-v-left-top"></div><div className="side side-v-left-bottom"></div><div className="side side-v-right-top"></div><div className="side side-v-right-bottom"></div><div className="side side-h-end-left"></div><div className="side side-h-end-right"></div><div className="side side-h-top-left"></div><div className="side side-h-bottom-left"></div><div className="side side-h-top-right"></div><div className="side side-h-bottom-right"></div>
+      <div className="landing-mode">
+        
+        {/* Navigation - Top Right */}
+        <nav className="landing-nav">
+            <a href="#" className="landing-link">ABOUT</a>
+            <a href="#" className="landing-link">FEATURES</a>
+            <a href="#" className="landing-link">CONTACT</a>
+            <button className="login-btn">LOGIN</button>
+        </nav>
+
+        {/* Central Content */}
+        <div className="flex flex-col items-center z-10 w-full max-w-4xl px-4">
+            <h1 className="landing-title text-5xl md:text-7xl">GENESIS</h1>
+            <p className="landing-subtitle text-[10px] md:text-xs">STUDY SUITE /// V3.0</p>
+            
+            <div className="landing-inputs">
+                <input 
+                    type="text" 
+                    placeholder="ENTER YOUR CODENAME" 
+                    value={username} 
+                    onChange={(e) => setUsername(e.target.value.toUpperCase())} 
+                    className="landing-input" 
+                />
+                <div className="relative w-full">
+                    <select 
+                        value={settings.theme} 
+                        onChange={(e) => setSettings(s => ({...s, theme: e.target.value as any}))} 
+                        className="landing-input appearance-none cursor-pointer"
+                    >
+                        <option value="cyan">PROTOCOL CYAN</option>
+                        <option value="gold">ROYAL GOLD</option>
+                        <option value="green">MATRIX GREEN</option>
+                        <option value="purple">ROYAL PURPLE</option>
+                        <option value="rose">MYSTIC ROSE</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/50">
+                        <ChevronDownIcon className="w-3 h-3" />
+                    </div>
+                </div>
             </div>
-          </div>
-        )}
-        <div className="text-center z-10 space-y-4 mb-8"><h1 className="cinzel-font text-4xl md:text-7xl text-white font-bold tracking-widest cyan-glow">GENESIS</h1><p className="tech-font text-[#a0a8c0] text-xs md:text-sm tracking-[0.5em] uppercase opacity-80">Study Suite <span className="text-[var(--color-accent-secondary)] mx-2">///</span> V3.0</p></div>
-        <div className="w-full max-w-sm z-20 flex flex-col gap-5 animate-fadeIn">
-            <input type="text" placeholder="ENTER YOUR CODENAME" value={username} onChange={(e) => setUsername(e.target.value.toUpperCase())} className="glass-pill w-full px-6 py-4 text-center text-sm md:text-base tracking-[0.2em] font-bold bg-[#090a20]/20 border border-[var(--color-accent-primary)]/50 focus:border-[var(--color-accent-secondary)] text-[var(--color-accent-secondary)] placeholder:text-white/40 outline-none transition-all focus:shadow-[0_0_20px_var(--color-accent-primary)]" />
-            <div className="relative"><select value={settings.theme} onChange={(e) => setSettings(s => ({...s, theme: e.target.value as any}))} className="glass-pill w-full px-6 py-4 text-center text-xs md:text-sm tracking-[0.2em] appearance-none bg-[#090a20]/20 border border-[var(--color-accent-primary)]/50 cursor-pointer text-white/80 hover:text-white transition-colors outline-none focus:border-[var(--color-accent-secondary)] uppercase"><option value="cyan">Protocol Cyan</option><option value="gold">Royal Gold</option><option value="green">Matrix Green</option><option value="purple">Royal Purple</option><option value="rose">Mystic Rose</option></select><div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[var(--color-accent-secondary)]"><ChevronDownIcon className="w-4 h-4" /></div></div>
-            <button onClick={handleInitialize} disabled={!username.trim()} className="mt-4 reactor-button w-full px-6 py-4 rounded-full text-xs md:text-sm font-bold tracking-[0.25em] uppercase text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed">Initialize System</button>
+
+            {/* 3D Cross - Moved BELOW Inputs */}
+            {settings.showHologram && (
+                <div className="scene-3d">
+                    <div className="cross-group">
+                        <div className="face face-composite front"></div>
+                        <div className="face face-composite back"></div>
+                        <div className="side side-v-top"></div>
+                        <div className="side side-v-bottom"></div>
+                        <div className="side side-v-left-top"></div>
+                        <div className="side side-v-left-bottom"></div>
+                        <div className="side side-v-right-top"></div>
+                        <div className="side side-v-right-bottom"></div>
+                        <div className="side side-h-end-left"></div>
+                        <div className="side side-h-end-right"></div>
+                        <div className="side side-h-top-left"></div>
+                        <div className="side side-h-bottom-left"></div>
+                        <div className="side side-h-top-right"></div>
+                        <div className="side side-h-bottom-right"></div>
+                    </div>
+                </div>
+            )}
+
+            <button 
+                onClick={handleInitialize} 
+                disabled={!username.trim()} 
+                className="mt-8 reactor-button px-10 py-4 rounded-full text-xs font-bold tracking-[0.2em] uppercase text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                INITIALIZE SYSTEM
+            </button>
         </div>
+
+        {/* Footer - Bottom Right */}
+        <footer className="landing-footer">
+            <div className="social-icons">
+                <svg className="social-icon" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.791-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                <svg className="social-icon" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
+                <svg className="social-icon" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.073-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                <svg className="social-icon" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            </div>
+            <span className="copyright">© 2022 Genesis Study, Inc.</span>
+        </footer>
       </div>
     );
   }
