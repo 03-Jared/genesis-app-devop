@@ -469,7 +469,7 @@ const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({ selectedWord, b
                             style={{ 
                                 width: '65px', 
                                 height: '65px',
-                                borderColor: showGlow ? glowColor : 'rgba(255,255,255,0.1)',
+                                borderColor: showGlow ? glowColor : 'transparent',
                                 boxShadow: showGlow ? `0 0 20px ${glowColor}66` : 'none',
                                 color: textColor
                             }}

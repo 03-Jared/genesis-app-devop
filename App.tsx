@@ -705,15 +705,23 @@ const App: React.FC = () => {
             <button className="login-btn">LOGIN</button>
         </nav>
 
+        {/* Particles Container */}
+        <div className="particle" style={{ left: '10%', top: '20%', animationDuration: '25s' }}></div>
+        <div className="particle" style={{ left: '30%', top: '50%', animationDuration: '18s' }}></div>
+        <div className="particle" style={{ left: '70%', top: '30%', animationDuration: '22s' }}></div>
+        <div className="particle" style={{ left: '80%', top: '80%', animationDuration: '30s' }}></div>
+        <div className="light-streak"></div>
+
         {/* Central Content */}
-        <div className="flex flex-col items-center z-10 w-full max-w-4xl px-4">
+        <div className="flex flex-col items-center z-10 w-full max-w-4xl px-4 text-center justify-center min-h-screen">
+            
             <h1 className="landing-title text-5xl md:text-7xl">GENESIS</h1>
             <p className="landing-subtitle text-[10px] md:text-xs">STUDY SUITE /// V3.0</p>
             
             <div className="landing-inputs">
                 <input 
                     type="text" 
-                    placeholder="ENTER YOUR CODENAME" 
+                    placeholder="AGENT ID" 
                     value={username} 
                     onChange={(e) => setUsername(e.target.value.toUpperCase())} 
                     className="landing-input" 
@@ -724,11 +732,12 @@ const App: React.FC = () => {
                         onChange={(e) => setSettings(s => ({...s, theme: e.target.value as any}))} 
                         className="landing-input appearance-none cursor-pointer"
                     >
+                        <option value="" disabled selected>SECURITY PROTOCOL</option>
+                        <option value="rose">MYSTIC ROSE</option>
                         <option value="cyan">PROTOCOL CYAN</option>
                         <option value="gold">ROYAL GOLD</option>
                         <option value="green">MATRIX GREEN</option>
                         <option value="purple">ROYAL PURPLE</option>
-                        <option value="rose">MYSTIC ROSE</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/50">
                         <ChevronDownIcon className="w-3 h-3" />

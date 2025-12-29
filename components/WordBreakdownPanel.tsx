@@ -203,7 +203,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   const breakdown = selectedWord ? getLetterBreakdown(strictCleanText) : [];
 
   return (
-    <div className="flex flex-col animate-fadeIn relative pb-8">
+    <div className="flex flex-col animate-fadeIn relative pb-24">
       <div className="text-[10px] tech-font text-[var(--color-accent-secondary)] uppercase tracking-widest mb-4 text-center">Morphological Analysis</div>
 
       <div className="decoder-card mb-6 p-6 rounded-2xl glass-panel border border-[var(--color-accent-primary)]/30 relative overflow-hidden group h-auto">
