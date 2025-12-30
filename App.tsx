@@ -21,6 +21,7 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronUpIcon,
   CursorArrowRaysIcon,
   BookmarkIcon,
   TrashIcon,
@@ -34,7 +35,13 @@ import {
   LanguageIcon,
   SparklesIcon,
   StopIcon,
-  PaperClipIcon
+  PaperClipIcon,
+  SignalIcon,
+  Square3Stack3DIcon,
+  EnvelopeIcon,
+  ShieldCheckIcon,
+  LightBulbIcon,
+  CubeTransparentIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -98,6 +105,10 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
   const [username, setUsername] = useState('');
+
+  // Login State for Landing Page
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
 
   const [scriptureData, setScriptureData] = useState<SefariaResponse | null>(null);
   const [history, setHistory] = useState<WordData[]>([]);
@@ -239,6 +250,17 @@ const App: React.FC = () => {
     setShowLanding(false);
   };
 
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loginEmail && loginPassword) {
+        // Mock Login: Just use the email user part as username
+        const mockUser = loginEmail.split('@')[0];
+        setUsername(mockUser.toUpperCase());
+        localStorage.setItem('genesis_username', mockUser.toUpperCase());
+        setShowLanding(false);
+    }
+  };
+
   const toggleReaderMode = () => {
     const newVal = !isReaderMode;
     setIsReaderMode(newVal);
@@ -280,6 +302,14 @@ const App: React.FC = () => {
   const handleOpenDictionary = (char?: string) => {
       setDictionaryTargetChar(char || null);
       setIsDictionaryOpen(true);
+  };
+
+  // --- LANDING PAGE SMOOTH SCROLL ENGINE ---
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -699,90 +729,267 @@ const App: React.FC = () => {
         
         {/* Navigation - Top Right */}
         <nav className="landing-nav">
-            <a href="#" className="landing-link">ABOUT</a>
-            <a href="#" className="landing-link">FEATURES</a>
-            <a href="#" className="landing-link">CONTACT</a>
-            <button className="login-btn">LOGIN</button>
+            <a onClick={() => scrollToSection('about')} className="landing-link cursor-pointer">ABOUT</a>
+            <a onClick={() => scrollToSection('features')} className="landing-link cursor-pointer">FEATURES</a>
+            <a onClick={() => scrollToSection('contact')} className="landing-link cursor-pointer">CONTACT</a>
+            <button onClick={() => scrollToSection('login')} className="login-btn no-underline">LOGIN</button>
         </nav>
 
-        {/* Particles Container */}
+        {/* Particles Container (Fixed to Viewport) */}
         <div className="particle" style={{ left: '10%', top: '20%', animationDuration: '25s' }}></div>
         <div className="particle" style={{ left: '30%', top: '50%', animationDuration: '18s' }}></div>
         <div className="particle" style={{ left: '70%', top: '30%', animationDuration: '22s' }}></div>
         <div className="particle" style={{ left: '80%', top: '80%', animationDuration: '30s' }}></div>
         <div className="light-streak"></div>
 
-        {/* Central Content */}
-        <div className="flex flex-col items-center z-10 w-full max-w-4xl px-4 text-center justify-center min-h-screen">
-            
-            <h1 className="landing-title text-5xl md:text-7xl">GENESIS</h1>
-            <p className="landing-subtitle text-[10px] md:text-xs">STUDY SUITE /// V3.0</p>
-            
-            <div className="landing-inputs">
-                <input 
-                    type="text" 
-                    placeholder="AGENT ID" 
-                    value={username} 
-                    onChange={(e) => setUsername(e.target.value.toUpperCase())} 
-                    className="landing-input" 
-                />
-                <div className="relative w-full">
-                    <select 
-                        value={settings.theme} 
-                        onChange={(e) => setSettings(s => ({...s, theme: e.target.value as any}))} 
-                        className="landing-input appearance-none cursor-pointer"
-                    >
-                        <option value="" disabled selected>SECURITY PROTOCOL</option>
-                        <option value="rose">MYSTIC ROSE</option>
-                        <option value="cyan">PROTOCOL CYAN</option>
-                        <option value="gold">ROYAL GOLD</option>
-                        <option value="green">MATRIX GREEN</option>
-                        <option value="purple">ROYAL PURPLE</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/50">
-                        <ChevronDownIcon className="w-3 h-3" />
+        {/* --- SECTION 1: HERO (Original Landing) --- */}
+        <section id="home" className="landing-section">
+            <div className="flex flex-col items-center z-10 w-full max-w-4xl px-4 text-center justify-center">
+                
+                <h1 className="landing-title text-5xl md:text-7xl">GENESIS</h1>
+                <p className="landing-subtitle text-[10px] md:text-xs">STUDY SUITE /// V3.0</p>
+                
+                <div className="landing-inputs">
+                    <input 
+                        type="text" 
+                        placeholder="AGENT ID" 
+                        value={username} 
+                        onChange={(e) => setUsername(e.target.value.toUpperCase())} 
+                        className="landing-input" 
+                    />
+                    <div className="relative w-full">
+                        <select 
+                            value={settings.theme} 
+                            onChange={(e) => setSettings(s => ({...s, theme: e.target.value as any}))} 
+                            className="landing-input appearance-none cursor-pointer"
+                        >
+                            <option value="" disabled selected>SECURITY PROTOCOL</option>
+                            <option value="rose">MYSTIC ROSE</option>
+                            <option value="cyan">PROTOCOL CYAN</option>
+                            <option value="gold">ROYAL GOLD</option>
+                            <option value="green">MATRIX GREEN</option>
+                            <option value="purple">ROYAL PURPLE</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/50">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
                     </div>
                 </div>
+
+                {/* 3D Cross */}
+                {settings.showHologram && (
+                    <div className="scene-3d">
+                        <div className="cross-group">
+                            <div className="face face-composite front"></div>
+                            <div className="face face-composite back"></div>
+                            <div className="side side-v-top"></div>
+                            <div className="side side-v-bottom"></div>
+                            <div className="side side-v-left-top"></div>
+                            <div className="side side-v-left-bottom"></div>
+                            <div className="side side-v-right-top"></div>
+                            <div className="side side-v-right-bottom"></div>
+                            <div className="side side-h-end-left"></div>
+                            <div className="side side-h-end-right"></div>
+                            <div className="side side-h-top-left"></div>
+                            <div className="side side-h-bottom-left"></div>
+                            <div className="side side-h-top-right"></div>
+                            <div className="side side-h-bottom-right"></div>
+                        </div>
+                    </div>
+                )}
+
+                <button 
+                    onClick={handleInitialize} 
+                    disabled={!username.trim()} 
+                    className="mt-8 reactor-button px-10 py-4 rounded-full text-xs font-bold tracking-[0.2em] uppercase text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    INITIALIZE SYSTEM
+                </button>
             </div>
+            
+             {/* Footer - Only visible on the first screen if nice, but we might want it at bottom */}
+            <div className="absolute bottom-10 right-10 hidden md:flex flex-col items-end gap-3 z-20">
+                <span className="copyright">© 2024 Genesis Study, Inc.</span>
+            </div>
+        </section>
 
-            {/* 3D Cross - Moved BELOW Inputs */}
-            {settings.showHologram && (
-                <div className="scene-3d">
-                    <div className="cross-group">
-                        <div className="face face-composite front"></div>
-                        <div className="face face-composite back"></div>
-                        <div className="side side-v-top"></div>
-                        <div className="side side-v-bottom"></div>
-                        <div className="side side-v-left-top"></div>
-                        <div className="side side-v-left-bottom"></div>
-                        <div className="side side-v-right-top"></div>
-                        <div className="side side-v-right-bottom"></div>
-                        <div className="side side-h-end-left"></div>
-                        <div className="side side-h-end-right"></div>
-                        <div className="side side-h-top-left"></div>
-                        <div className="side side-h-bottom-left"></div>
-                        <div className="side side-h-top-right"></div>
-                        <div className="side side-h-bottom-right"></div>
-                    </div>
-                </div>
-            )}
+        {/* --- SECTION 2: ABOUT --- */}
+        <section id="about" className="landing-section bg-black/40 backdrop-blur-sm border-t border-white/5">
+             <div className="max-w-3xl text-center space-y-8">
+                 <h2 className="cinzel-font text-3xl md:text-5xl text-white tracking-widest mb-6">Our Mission</h2>
+                 <p className="text-lg md:text-xl text-[#a0a8c0] font-light leading-relaxed font-serif">
+                    The Genesis Suite is a sophisticated platform dedicated to the serious study of scripture. We bridge the gap between ancient theology and modern intelligence, providing a serene environment for deep textual analysis.
+                 </p>
+                 <p className="text-lg md:text-xl text-[#a0a8c0] font-light leading-relaxed font-serif">
+                    Our purpose is to preserve the integrity of the original Hebrew text while offering clarity through advanced analytical tools, fostering a profound and distraction-free study experience.
+                 </p>
+                 <div className="pt-10">
+                     <div className="h-[1px] w-32 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent mx-auto"></div>
+                 </div>
+             </div>
+        </section>
 
-            <button 
-                onClick={handleInitialize} 
-                disabled={!username.trim()} 
-                className="mt-8 reactor-button px-10 py-4 rounded-full text-xs font-bold tracking-[0.2em] uppercase text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                INITIALIZE SYSTEM
-            </button>
-        </div>
+        {/* --- SECTION 3: FEATURES (Glass Cards Slider) --- */}
+        <section id="features" className="landing-section border-t border-white/5 bg-black/20">
+             <h2 className="cinzel-font text-3xl md:text-4xl text-white tracking-widest mb-16 text-center">System Capabilities</h2>
+             
+             <div className="w-full max-w-6xl px-4 overflow-x-auto pb-12 pt-4 flex gap-6 snap-x scrollbar-hide">
+                 
+                 {/* Feature 1: Linguistic Analysis */}
+                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     <div className="w-12 h-12 rounded-full bg-[var(--color-accent-secondary)]/10 flex items-center justify-center border border-[var(--color-accent-secondary)]/30 text-[var(--color-accent-secondary)]">
+                         <CpuChipIcon className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Linguistic Analysis</h3>
+                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                         Instant, in-depth analysis of Hebrew morphology, roots, and definitions powered by generative AI.
+                     </p>
+                 </div>
 
-        {/* Footer - Bottom Right */}
+                 {/* Feature 2: Paleo-Hebrew */}
+                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     <div className="w-12 h-12 rounded-full bg-[var(--color-accent-primary)]/10 flex items-center justify-center border border-[var(--color-accent-primary)]/30 text-[var(--color-accent-primary)]">
+                         <LightBulbIcon className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Paleo-Hebrew Visualization</h3>
+                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                         A visual breakdown of ancient letter meanings, revealing the concrete imagery behind abstract concepts.
+                     </p>
+                 </div>
+
+                 {/* Feature 3: AI Companion */}
+                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/30 text-purple-400">
+                         <ChatBubbleLeftRightIcon className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Intelligent Companion</h3>
+                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                         An empathetic, context-aware AI assistant capable of answering complex theological inquiries with precision.
+                     </p>
+                 </div>
+
+                 {/* Feature 4: Personal Archives */}
+                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30 text-emerald-400">
+                         <ShieldCheckIcon className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Personal Archives</h3>
+                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                         Securely save your insights and build a personal library of revelations within a digital vault.
+                     </p>
+                 </div>
+
+                 {/* Feature 5: Voice Synthesis */}
+                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/30 text-orange-400">
+                         <SpeakerWaveIcon className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Voice Synthesis</h3>
+                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                         High-fidelity text-to-speech capabilities for accurate Hebrew pronunciation and immersive listening.
+                     </p>
+                 </div>
+
+                 {/* Feature 6: Export Studio */}
+                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     <div className="w-12 h-12 rounded-full bg-pink-500/10 flex items-center justify-center border border-pink-500/30 text-pink-400">
+                         <SwatchIcon className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Export Studio</h3>
+                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                         Create, customize, and export elegant visual cards to share your favorite verses and spiritual insights.
+                     </p>
+                 </div>
+
+             </div>
+        </section>
+
+        {/* --- SECTION 4: CONTACT --- */}
+        <section id="contact" className="landing-section border-t border-white/5 bg-black/60 backdrop-blur-md">
+             <div className="max-w-2xl w-full flex flex-col items-center">
+                 <h2 className="cinzel-font text-3xl md:text-4xl text-white tracking-widest mb-4">Direct Contact</h2>
+                 <p className="text-xs tech-font uppercase tracking-[0.3em] text-[var(--color-accent-secondary)] mb-12">Submit Priority Request</p>
+                 
+                 <form className="w-full space-y-8">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                         <input type="text" placeholder="FULL NAME" className="luxury-input" />
+                         <input type="email" placeholder="OFFICIAL EMAIL" className="luxury-input" />
+                     </div>
+                     <textarea placeholder="NATURE OF INQUIRY" className="luxury-input resize-none h-32"></textarea>
+                     
+                     <div className="flex justify-center pt-8">
+                         <button type="button" className="electric-gradient px-12 py-4 rounded-full text-xs font-bold tracking-[0.2em] uppercase text-white hover:scale-105 transition-transform flex items-center gap-3">
+                             <EnvelopeIcon className="w-4 h-4" />
+                             Transmit
+                         </button>
+                     </div>
+                 </form>
+             </div>
+        </section>
+
+        {/* --- SECTION 5: LOGIN --- */}
+        <section id="login" className="landing-section border-t border-white/5">
+             <div className="max-w-md w-full bg-[#0a0a14] border border-white/10 p-10 rounded-3xl shadow-2xl relative overflow-hidden">
+                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent"></div>
+                 
+                 <div className="text-center mb-10">
+                     <h2 className="cinzel-font text-2xl text-white tracking-widest mb-2">Agent Login</h2>
+                     <p className="text-[10px] tech-font uppercase tracking-widest text-white/40">Secure Access Terminal</p>
+                 </div>
+                 
+                 <form onSubmit={handleLogin} className="space-y-6">
+                     <div className="space-y-2">
+                         <label className="text-[9px] uppercase tracking-widest text-[var(--color-accent-secondary)] font-bold">Agent Identity (Email)</label>
+                         <div className="relative">
+                             <input 
+                                type="email" 
+                                value={loginEmail}
+                                onChange={(e) => setLoginEmail(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-[var(--color-accent-secondary)] outline-none pl-10 transition-colors"
+                             />
+                             <CubeTransparentIcon className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
+                         </div>
+                     </div>
+                     
+                     <div className="space-y-2">
+                         <label className="text-[9px] uppercase tracking-widest text-[var(--color-accent-secondary)] font-bold">Passkey</label>
+                         <div className="relative">
+                             <input 
+                                type="password" 
+                                value={loginPassword}
+                                onChange={(e) => setLoginPassword(e.target.value)}
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-[var(--color-accent-secondary)] outline-none pl-10 transition-colors"
+                             />
+                             <ShieldCheckIcon className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
+                         </div>
+                     </div>
+
+                     <button type="submit" className="w-full mt-4 electric-gradient py-4 rounded-lg text-xs font-bold tracking-[0.2em] uppercase text-white hover:brightness-110 transition-all">
+                         Authenticate
+                     </button>
+                 </form>
+
+                 <div className="mt-8 text-center">
+                     <a href="#" className="text-[9px] tech-font uppercase tracking-widest text-white/30 hover:text-white transition-colors">Recover Access Credentials</a>
+                 </div>
+             </div>
+        </section>
+        
+        {/* Back to Top Button */}
+        <button 
+            onClick={() => scrollToSection('home')}
+            className="fixed bottom-8 left-8 z-50 bg-white/5 border border-white/10 p-3 rounded-full hover:bg-white/10 hover:border-[var(--color-accent-secondary)] transition-all group backdrop-blur-md"
+            title="Return to Top"
+        >
+            <ChevronUpIcon className="w-5 h-5 text-white/50 group-hover:text-[var(--color-accent-secondary)]" />
+        </button>
+
+        {/* Persistent Footer */}
         <footer className="landing-footer">
             <div className="social-icons">
                 <svg className="social-icon" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.791-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                 <svg className="social-icon" viewBox="0 0 24 24"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>
                 <svg className="social-icon" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.073-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-                <svg className="social-icon" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
             </div>
             <span className="copyright">© 2022 Genesis Study, Inc.</span>
         </footer>
