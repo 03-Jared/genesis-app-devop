@@ -292,18 +292,31 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                 
                 {/* Pictographic Tiles */}
                 <div className="flex flex-row items-start justify-start gap-2 md:gap-4 overflow-x-auto pb-4 scrollbar-hide">
-                  {breakdown.map((l, i) => (
+                  {breakdown.map((l, i) => {
+                      // GUEST RESTRICTION LOGIC:
+                      // Aleph ('א') is fully visible.
+                      // All other letters: Image dimmed/blurred, Meaning text blurred, Button disabled.
+                      const isAleph = l.char === 'א';
+                      const isRestricted = isGuest && !isAleph;
+
+                      return (
                       <React.Fragment key={i}>
                           <div className="flex flex-col items-center gap-3 shrink-0 group min-w-[90px] relative">
                                <div className="w-20 h-20 flex items-center justify-center bg-[#090a20] border border-[var(--color-accent-primary)]/30 rounded-xl relative shadow-[0_4px_10px_rgba(0,0,0,0.3)] group-hover:border-[var(--color-accent-secondary)] group-hover:shadow-[0_0_15px_var(--color-accent-primary)] transition-all duration-300">
                                     <div className="absolute inset-0 bg-[var(--color-accent-primary)]/5 rounded-xl"></div>
-                                    <span className="text-4xl filter drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] transform group-hover:scale-110 transition-transform duration-300 z-10">{l.emoji}</span>
+                                    <span className={`text-4xl filter drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] transform group-hover:scale-110 transition-transform duration-300 z-10 ${isRestricted ? 'opacity-25 blur-sm brightness-[0.2] grayscale' : ''}`}>
+                                        {l.emoji}
+                                    </span>
                                     
                                     {/* Specific 'i' icon for this letter */}
                                     <button 
-                                      onClick={(e) => { e.stopPropagation(); onOpenDictionary && onOpenDictionary(l.char); }}
-                                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-[var(--color-accent-secondary)] border border-white/20 hover:border-white text-white/70 hover:text-white flex items-center justify-center transition-all duration-300 z-20 opacity-0 group-hover:opacity-100 scale-90 hover:scale-100"
-                                      title={`See meaning of ${l.name}`}
+                                      onClick={(e) => { 
+                                          e.stopPropagation(); 
+                                          if (isRestricted) return; // Prevent click for guests on non-Aleph
+                                          onOpenDictionary && onOpenDictionary(l.char); 
+                                      }}
+                                      className={`absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 hover:bg-[var(--color-accent-secondary)] border border-white/20 hover:border-white text-white/70 hover:text-white flex items-center justify-center transition-all duration-300 z-20 opacity-0 group-hover:opacity-100 scale-90 hover:scale-100 ${isRestricted ? 'cursor-not-allowed hover:bg-black/60 hover:border-white/20 hover:text-white/70' : ''}`}
+                                      title={isRestricted ? "Login to unlock meaning" : `See meaning of ${l.name}`}
                                     >
                                       <InformationCircleIcon className="w-3.5 h-3.5" />
                                     </button>
@@ -312,7 +325,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                                   <div className="text-[10px] md:text-[11px] font-bold text-white uppercase tracking-wider font-mono whitespace-nowrap">
                                       <span className="text-[var(--color-accent-secondary)]">{l.char}</span> - {l.name.toUpperCase()}
                                   </div>
-                                  <div className="text-[8px] md:text-[9px] text-[#a0a8c0] uppercase tracking-widest opacity-80 tech-font px-2 bg-white/5 rounded py-0.5 whitespace-nowrap">
+                                  <div className={`text-[8px] md:text-[9px] text-[#a0a8c0] uppercase tracking-widest opacity-80 tech-font px-2 bg-white/5 rounded py-0.5 whitespace-nowrap ${isRestricted ? 'blur-sm select-none' : ''}`}>
                                       {l.pictograph}
                                   </div>
                                </div>
@@ -323,7 +336,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                                </div>
                           )}
                       </React.Fragment>
-                  ))}
+                  )})}
                 </div>
             </div>
 

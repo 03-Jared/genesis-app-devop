@@ -234,6 +234,54 @@
           transform: translateY(-5px);
           box-shadow: 0 20px 40px rgba(0,0,0,0.4);
       }
+
+      /* --- PRICING CARDS --- */
+      .pricing-card {
+          background: rgba(10, 14, 25, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 20px;
+          padding: 30px;
+          display: flex;
+          flex-direction: column;
+          transition: all 0.3s ease;
+          position: relative;
+          backdrop-filter: blur(15px);
+      }
+      .pricing-card:hover {
+          transform: translateY(-8px);
+          border-color: rgba(255, 255, 255, 0.2);
+          box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      }
+      .pricing-popular {
+          border-color: var(--color-accent-secondary);
+          background: rgba(10, 14, 30, 0.8);
+          box-shadow: 0 0 30px rgba(0, 210, 255, 0.1);
+      }
+      .popular-badge {
+          position: absolute;
+          top: -12px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #0a0e1c;
+          border: 1px solid var(--color-accent-secondary);
+          color: white;
+          padding: 4px 16px;
+          border-radius: 99px;
+          font-size: 0.7rem;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          z-index: 10;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      }
+      .pricing-check {
+          color: var(--color-accent-secondary);
+          flex-shrink: 0;
+      }
+      .pricing-x {
+          color: rgba(255,255,255,0.2);
+          flex-shrink: 0;
+      }
       
       .luxury-input {
           background: transparent;

@@ -43,7 +43,9 @@ import {
   LightBulbIcon,
   CubeTransparentIcon,
   LockClosedIcon,
-  ArrowUturnLeftIcon
+  ArrowUturnLeftIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -117,7 +119,12 @@ const App: React.FC = () => {
   // Login State
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [isLoginLocked, setIsLoginLocked] = useState(false); // Controls scroll lock on login section
+  
+  // Separated states to fix scrolling race condition
+  const [isLoginVisible, setIsLoginVisible] = useState(false); // Controls section visibility/expansion
+  const [isScrollLocked, setIsScrollLocked] = useState(false); // Controls page scroll lock
+  
+  const loginSectionRef = useRef<HTMLElement>(null);
 
   const [scriptureData, setScriptureData] = useState<SefariaResponse | null>(null);
   const [history, setHistory] = useState<WordData[]>([]);
@@ -268,20 +275,28 @@ const App: React.FC = () => {
         localStorage.setItem('genesis_username', 'WABAKI');
         setIsAdmin(true);
         setShowLanding(false);
-        setIsLoginLocked(false);
+        setIsLoginVisible(false);
+        setIsScrollLocked(false);
     } else {
         alert("Authentication Failed. Invalid Credentials.");
     }
   };
 
   const unlockLoginScroll = () => {
-      setIsLoginLocked(false);
-      // Optional: Scroll up slightly to show it's unlocked, or stay there.
+      setIsScrollLocked(false);
+      setIsLoginVisible(false);
   };
 
   const triggerLoginLock = () => {
-      setIsLoginLocked(true);
-      scrollToSection('login');
+      setIsLoginVisible(true);
+      // Wait for DOM expansion (CSS transition), then scroll
+      setTimeout(() => {
+          scrollToSection('login');
+          // Wait for smooth scroll to actually finish before locking
+          setTimeout(() => {
+              setIsScrollLocked(true);
+          }, 800); 
+      }, 50); 
   };
 
   const toggleReaderMode = () => {
@@ -624,12 +639,37 @@ const App: React.FC = () => {
   };
 
   const handleChapterNav = (direction: 'next' | 'prev') => {
-    const max = BIBLE_DATA[selectedBook] || 50;
-    let next = selectedChapter;
-    if (direction === 'next') { if (next >= max) return; next++; }
-    else { if (next <= 1) return; next--; }
-    setSelectedChapter(next);
-    fetchScripture(selectedBook, next);
+    const currentBookIndex = BIBLE_BOOKS.indexOf(selectedBook);
+    const maxCh = BIBLE_DATA[selectedBook] || 50;
+    
+    if (direction === 'next') {
+        if (selectedChapter < maxCh) {
+            // Next Chapter in Same Book
+            const next = selectedChapter + 1;
+            setSelectedChapter(next);
+            fetchScripture(selectedBook, next);
+        } else if (currentBookIndex < BIBLE_BOOKS.length - 1) {
+            // Next Book, Chapter 1
+            const nextBook = BIBLE_BOOKS[currentBookIndex + 1];
+            setSelectedBook(nextBook);
+            setSelectedChapter(1);
+            fetchScripture(nextBook, 1);
+        }
+    } else {
+        if (selectedChapter > 1) {
+            // Prev Chapter in Same Book
+            const prev = selectedChapter - 1;
+            setSelectedChapter(prev);
+            fetchScripture(selectedBook, prev);
+        } else if (currentBookIndex > 0) {
+            // Prev Book, Last Chapter
+            const prevBook = BIBLE_BOOKS[currentBookIndex - 1];
+            const prevBookMaxCh = BIBLE_DATA[prevBook];
+            setSelectedBook(prevBook);
+            setSelectedChapter(prevBookMaxCh);
+            fetchScripture(prevBook, prevBookMaxCh);
+        }
+    }
   };
 
   const handleWordClick = (word: string, verseIndex: number) => {
@@ -658,10 +698,11 @@ const App: React.FC = () => {
       if (!isHoverEnabled || isTouchDevice() || isMobileSize()) return;
 
       // GUEST RESTRICTION: Only Genesis Chapter 1, Verses 1-4 allowed for hover
-      if (!isAdmin) {
-          const isGenesis1 = activeRef.book === 'Genesis' && activeRef.chapter === 1;
-          const isFirstFour = verseIndex < 4; // 0, 1, 2, 3 (Verses 1-4)
-          if (!isGenesis1 || !isFirstFour) return;
+      const isGenesis1 = activeRef.book === 'Genesis' && activeRef.chapter === 1;
+      const isFirstFour = verseIndex < 4; // 0, 1, 2, 3 (Verses 1-4)
+      
+      if (!isAdmin && (!isGenesis1 || !isFirstFour)) {
+          return;
       }
 
       setHoveredHebrewWord(word);
@@ -678,7 +719,13 @@ const App: React.FC = () => {
           const rootChar = SOFIT_MAP[char] || char;
           const data = DEFAULT_HEBREW_MAP[rootChar];
           if (data) {
-             sequenceHtml += `<div class="popup-card"><span class="popup-img">${data.emoji}</span><span class="popup-letter">${char}</span></div>`;
+             // GUEST RESTRICTION IN HOVER POPUP:
+             // Only Aleph ('א') is visible. Others are blurred.
+             const isAleph = char === 'א';
+             const isRestricted = !isAdmin && !isAleph;
+             const blurStyle = isRestricted ? 'filter: blur(4px); opacity: 0.3;' : '';
+
+             sequenceHtml += `<div class="popup-card"><span class="popup-img" style="${blurStyle}">${data.emoji}</span><span class="popup-letter">${char}</span></div>`;
              if (index < cleanLetters.length - 1) sequenceHtml += `<span class="popup-arrow">→</span>`;
           }
       });
@@ -764,14 +811,26 @@ const App: React.FC = () => {
   
   const filteredCards = savedCards.filter(card => card.book === selectedBook);
 
+  // Logic variables for Next/Prev Buttons
+  const currentBookIndex = BIBLE_BOOKS.indexOf(selectedBook);
+  const prevBookName = currentBookIndex > 0 ? BIBLE_BOOKS[currentBookIndex - 1] : null;
+  const nextBookName = currentBookIndex < BIBLE_BOOKS.length - 1 ? BIBLE_BOOKS[currentBookIndex + 1] : null;
+  
+  // Show Prev if: Chapter > 1 OR (Chapter == 1 AND Not Genesis)
+  const showPrevButton = selectedChapter > 1 || (selectedChapter === 1 && prevBookName);
+  
+  // Show Next if: Chapter < Max OR (Chapter == Max AND Not Malachi)
+  const showNextButton = selectedChapter < maxChapters || (selectedChapter === maxChapters && nextBookName);
+
   if (showLanding) {
     return (
-      <div className={`landing-mode ${isLoginLocked ? 'overflow-hidden' : ''}`}>
+      <div className={`landing-mode ${isScrollLocked ? 'overflow-hidden' : ''}`}>
         
         {/* Navigation - Top Right */}
         <nav className="landing-nav">
             <a onClick={() => scrollToSection('about')} className="landing-link cursor-pointer">ABOUT</a>
             <a onClick={() => scrollToSection('features')} className="landing-link cursor-pointer">FEATURES</a>
+            <a onClick={() => scrollToSection('pricing')} className="landing-link cursor-pointer">PRICING</a>
             <a onClick={() => scrollToSection('contact')} className="landing-link cursor-pointer">CONTACT</a>
             <button onClick={triggerLoginLock} className="login-btn no-underline">LOGIN</button>
         </nav>
@@ -928,7 +987,129 @@ const App: React.FC = () => {
              </div>
         </section>
 
-        {/* --- SECTION 4: CONTACT --- */}
+        {/* --- SECTION 4: PRICING (New) --- */}
+        <section id="pricing" className="landing-section border-t border-white/5 bg-black/40 backdrop-blur-sm">
+             <div className="flex flex-col items-center mb-16 text-center px-4">
+                 <p className="text-xs tech-font text-[var(--color-accent-secondary)] uppercase tracking-[0.3em] mb-4">Mission Packages</p>
+                 <h2 className="cinzel-font text-3xl md:text-5xl text-white tracking-widest mb-6">Choose Your Path</h2>
+                 <p className="text-lg md:text-xl text-[#a0a8c0] font-light leading-relaxed font-serif max-w-2xl">
+                    From standard scrolls to infinite wisdom, select the perfect tier that matches your thirst for knowledge.
+                 </p>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
+                 {/* Tier 1: The Scroll */}
+                 <div className="pricing-card">
+                     <h3 className="text-2xl font-bold text-white mb-2">The Scroll</h3>
+                     <p className="text-sm text-[#a0a8c0] mb-6">For casual visitors starting their journey.</p>
+                     <div className="text-4xl font-bold text-white mb-8">$0 <span className="text-sm font-normal text-[#a0a8c0]">/ month</span></div>
+                     
+                     <div className="space-y-4 mb-8 flex-grow">
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300">Basic Hebrew Decoding</span>
+                         </div>
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300">Standard Pictograph View</span>
+                         </div>
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300">Dictionary Access</span>
+                         </div>
+                         <div className="flex items-start gap-3 opacity-50">
+                             <XCircleIcon className="w-5 h-5 pricing-x" />
+                             <span className="text-sm text-gray-500">No Rabbi AI Chatbot</span>
+                         </div>
+                         <div className="flex items-start gap-3 opacity-50">
+                             <XCircleIcon className="w-5 h-5 pricing-x" />
+                             <span className="text-sm text-gray-500">Standard Voice Only</span>
+                         </div>
+                     </div>
+                     
+                     <button 
+                        onClick={handleInitialize}
+                        disabled={!username.trim()} 
+                        className="w-full py-3 rounded-lg border border-white/20 text-white hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                     >
+                         Access Guest Mode
+                     </button>
+                 </div>
+
+                 {/* Tier 2: The Temple (Most Popular) */}
+                 <div className="pricing-card pricing-popular transform scale-105 z-10">
+                     <div className="popular-badge">Most Popular</div>
+                     <h3 className="text-2xl font-bold text-white mb-2">The Temple</h3>
+                     <p className="text-sm text-[#a0a8c0] mb-6">For serious students seeking deeper revelation.</p>
+                     <div className="text-4xl font-bold text-white mb-8">$15 <span className="text-sm font-normal text-[#a0a8c0]">/ month</span></div>
+                     
+                     <div className="space-y-4 mb-8 flex-grow">
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300"><strong>Rabbi AI Chatbot</strong> (15/day)</span>
+                         </div>
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300"><strong>Neural Voice</strong> (50 verses/day)</span>
+                         </div>
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300"><strong>Card Studio</strong> (5 exports/day)</span>
+                         </div>
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300">Full Morphology Analysis</span>
+                         </div>
+                     </div>
+                     
+                     <button 
+                        onClick={triggerLoginLock}
+                        className="w-full py-3 rounded-lg bg-[var(--color-accent-secondary)] text-black font-bold hover:brightness-110 transition-colors text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(0,210,255,0.3)]"
+                     >
+                         Join The Temple
+                     </button>
+                 </div>
+
+                 {/* Tier 3: The Heavens */}
+                 <div className="pricing-card">
+                     <h3 className="text-2xl font-bold text-white mb-2">The Heavens</h3>
+                     <p className="text-sm text-[#a0a8c0] mb-6">Unlimited access for true power users.</p>
+                     <div className="text-4xl font-bold text-white mb-8">$30 <span className="text-sm font-normal text-[#a0a8c0]">/ month</span></div>
+                     
+                     <div className="space-y-4 mb-8 flex-grow">
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300"><strong>Unlimited</strong> Rabbi AI Chat</span>
+                         </div>
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300"><strong>Unlimited</strong> Neural Voice</span>
+                         </div>
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300"><strong>Unlimited</strong> 4K Exports</span>
+                         </div>
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300">Beta Access (Video Gen)</span>
+                         </div>
+                         <div className="flex items-start gap-3">
+                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
+                             <span className="text-sm text-gray-300">Priority Support</span>
+                         </div>
+                     </div>
+                     
+                     <button 
+                        onClick={triggerLoginLock}
+                        className="w-full py-3 rounded-lg border border-white/20 text-white hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-widest"
+                     >
+                         Ascend Higher
+                     </button>
+                 </div>
+             </div>
+        </section>
+
+        {/* --- SECTION 5: CONTACT --- */}
         <section id="contact" className="landing-section border-t border-white/5 bg-black/60 backdrop-blur-md">
              <div className="max-w-2xl w-full flex flex-col items-center">
                  <h2 className="cinzel-font text-3xl md:text-4xl text-white tracking-widest mb-4">Direct Contact</h2>
@@ -951,12 +1132,17 @@ const App: React.FC = () => {
              </div>
         </section>
 
-        {/* --- SECTION 5: LOGIN --- */}
-        <section id="login" className={`landing-section border-t border-white/5 transition-all duration-700 ${isLoginLocked ? 'filter-none' : 'blur-xl grayscale opacity-50'}`}>
+        {/* --- SECTION 6: LOGIN --- */}
+        {/* Hidden (max-h-0) until clicked */}
+        <section 
+            id="login" 
+            ref={loginSectionRef}
+            className={`landing-section transition-all duration-700 ease-in-out ${isLoginVisible ? 'min-h-[100vh] h-auto opacity-100 py-20 border-t border-white/5 filter-none' : 'min-h-0 h-0 opacity-0 py-0 border-none overflow-hidden'}`}
+        >
              <div className="max-w-md w-full bg-[#0a0a14] border border-white/10 p-10 rounded-3xl shadow-2xl relative overflow-hidden">
                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent"></div>
                  
-                 {isLoginLocked && (
+                 {isLoginVisible && (
                      <button onClick={unlockLoginScroll} className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors" title="Unlock Scrolling">
                          <XMarkIcon className="w-6 h-6" />
                      </button>
@@ -1002,13 +1188,13 @@ const App: React.FC = () => {
 
                  <div className="mt-8 text-center flex flex-col gap-2">
                      <a href="#" className="text-[9px] tech-font uppercase tracking-widest text-white/30 hover:text-white transition-colors">Recover Access Credentials</a>
-                     {isLoginLocked && <button onClick={unlockLoginScroll} className="text-[9px] tech-font uppercase tracking-widest text-red-400 hover:text-white transition-colors mt-2">Cancel / Unlock</button>}
+                     {isLoginVisible && <button onClick={unlockLoginScroll} className="text-[9px] tech-font uppercase tracking-widest text-red-400 hover:text-white transition-colors mt-2">Cancel / Unlock</button>}
                  </div>
              </div>
         </section>
         
         {/* Back to Top Button */}
-        {!isLoginLocked && (
+        {!isScrollLocked && (
             <button 
                 onClick={() => scrollToSection('home')}
                 className="fixed bottom-8 left-8 z-50 bg-white/5 border border-white/10 p-3 rounded-full hover:bg-white/10 hover:border-[var(--color-accent-secondary)] transition-all group backdrop-blur-md"
@@ -1056,13 +1242,13 @@ const App: React.FC = () => {
         <ChatBubbleLeftRightIcon className="w-8 h-8" />
       </button>
 
+      {/* ... Chat Window ... */}
       {isChatOpen && (
         <div 
             id="aiChatWindow" 
             className="chat-window-container flex flex-col"
             style={isChatMaximized ? { width: '100vw', height: '100dvh', bottom: 0, right: 0, borderRadius: 0 } : {}}
         >
-            {/* ... Chat Content ... */}
             <div className="chat-header">
                 <div className="chat-title">
                     <span className={`chat-status ${!isAdmin ? 'bg-red-500 shadow-red-500' : ''}`}></span>
@@ -1087,38 +1273,18 @@ const App: React.FC = () => {
                                 </span>
                             </div>
                         )}
-
                         {msg.parts ? (
                             msg.parts.map((part, pIdx) => {
-                                if (part.type === 'text') return (
-                                    <div 
-                                        key={pIdx} 
-                                        className="markdown-content" 
-                                        dangerouslySetInnerHTML={{ __html: parseMarkdown(part.content) }} 
-                                    />
-                                );
-                                if (part.type === 'button') return (
-                                    <button 
-                                        key={pIdx} 
-                                        className="chat-suggestion-chip"
-                                        onClick={() => handleNavigate(part.ref)}
-                                    >
-                                        <strong>{part.ref}</strong> {part.desc}
-                                    </button>
-                                );
+                                if (part.type === 'text') return <div key={pIdx} className="markdown-content" dangerouslySetInnerHTML={{ __html: parseMarkdown(part.content) }} />;
+                                if (part.type === 'button') return <button key={pIdx} className="chat-suggestion-chip" onClick={() => handleNavigate(part.ref)}><strong>{part.ref}</strong> {part.desc}</button>;
                                 return null;
                             })
                         ) : (
-                            <div 
-                                className="markdown-content" 
-                                dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.text) }} 
-                            />
+                            <div className="markdown-content" dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.text) }} />
                         )}
                     </div>
                 ))}
-                {isChatThinking && (
-                    <div className="ai-message opacity-50 animate-pulse">Thinking...</div>
-                )}
+                {isChatThinking && <div className="ai-message opacity-50 animate-pulse">Thinking...</div>}
                 <div ref={chatEndRef} />
             </div>
 
@@ -1126,86 +1292,36 @@ const App: React.FC = () => {
                 <div className="context-preview-area">
                     <div className="context-chip">
                         <span className="font-bold uppercase tracking-wider text-[9px]">{activeContext.label}</span>
-                        <XMarkIcon 
-                            className="w-3 h-3 context-chip-close" 
-                            onClick={() => setActiveContext(null)} 
-                        />
+                        <XMarkIcon className="w-3 h-3 context-chip-close" onClick={() => setActiveContext(null)} />
                     </div>
                 </div>
             )}
 
             <div className="chat-input-area">
+                {/* ... Chat Input ... */}
                 {contextMenuOpen && (
                     <div className="context-menu">
                         <div className="text-[9px] uppercase tracking-widest text-white/30 px-4 py-2 border-b border-white/5 bg-black/20">Attach Context</div>
-                        
-                        {/* Menu Items - Visible but Disabled for Guests */}
-                        <div 
-                            className={`context-menu-item ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                            onClick={() => handleContextSelect('verse')}
-                        >
-                            <BookOpenIcon className="w-4 h-4" />
-                            <span>Current Verse { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span>
-                        </div>
-                        
-                        <div 
-                            className={`context-menu-item ${!selectedWord || !isAdmin ? 'disabled' : ''} ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                            onClick={() => selectedWord && handleContextSelect('word')}
-                        >
-                            <LanguageIcon className="w-4 h-4" />
-                            <span>Selected Word { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span>
-                        </div>
-                        
-                        <div 
-                            className={`context-menu-item ${!selectedWord || !isAdmin ? 'disabled' : ''} ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                            onClick={() => selectedWord && handleContextSelect('picto')}
-                        >
-                            <SparklesIcon className="w-4 h-4" />
-                            <span>Pictographs { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span>
-                        </div>
-                        
-                        <div 
-                            className={`context-menu-item ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                            onClick={() => handleContextSelect('summary')}
-                        >
-                            <DocumentTextIcon className="w-4 h-4" />
-                            <span>Summary { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span>
-                        </div>
+                        <div className={`context-menu-item ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleContextSelect('verse')}><BookOpenIcon className="w-4 h-4" /><span>Current Verse { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span></div>
+                        <div className={`context-menu-item ${!selectedWord || !isAdmin ? 'disabled' : ''} ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => selectedWord && handleContextSelect('word')}><LanguageIcon className="w-4 h-4" /><span>Selected Word { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span></div>
+                        <div className={`context-menu-item ${!selectedWord || !isAdmin ? 'disabled' : ''} ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => selectedWord && handleContextSelect('picto')}><SparklesIcon className="w-4 h-4" /><span>Pictographs { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span></div>
+                        <div className={`context-menu-item ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => handleContextSelect('summary')}><DocumentTextIcon className="w-4 h-4" /><span>Summary { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span></div>
                     </div>
                 )}
-                {/* Plus Button - Always Clickable now */}
-                <button 
-                    onClick={() => setContextMenuOpen(!contextMenuOpen)} 
-                    className={`chat-context-btn ${contextMenuOpen ? 'bg-white/10 text-white border-white' : ''}`}
-                >
-                    <PlusIcon className="w-5 h-5" />
-                </button>
-                
-                <input 
-                    type="text" 
-                    placeholder={isAdmin ? "Ask a question..." : "Login required to access Rabbi AI"} 
-                    value={chatInput} 
-                    onChange={(e) => setChatInput(e.target.value)} 
-                    onKeyDown={(e) => e.key === 'Enter' && handleChatSubmit()} 
-                    disabled={isChatThinking || !isAdmin} // Disabled for guests
-                />
-                
-                <button 
-                    onClick={handleChatSubmit} 
-                    disabled={isChatThinking || (!chatInput.trim() && !activeContext) || !isAdmin} // Disabled for guests
-                >
-                    <PaperAirplaneIcon className="w-5 h-5" />
-                </button>
+                <button onClick={() => setContextMenuOpen(!contextMenuOpen)} className={`chat-context-btn ${contextMenuOpen ? 'bg-white/10 text-white border-white' : ''}`}><PlusIcon className="w-5 h-5" /></button>
+                <input type="text" placeholder={isAdmin ? "Ask a question..." : "Login required to access Rabbi AI"} value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleChatSubmit()} disabled={isChatThinking || !isAdmin} />
+                <button onClick={handleChatSubmit} disabled={isChatThinking || (!chatInput.trim() && !activeContext) || !isAdmin}><PaperAirplaneIcon className="w-5 h-5" /></button>
             </div>
         </div>
       )}
 
+      {/* Main Content */}
       <header className="hidden md:flex justify-between items-center py-2 px-4 border-b border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 rounded-2xl mb-2 backdrop-blur-sm"><h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}</h1><div className="flex items-center gap-4">{Object.values(scanStatuses).some(s => s === 'scanning') && (<div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]"><span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>Gemini Uplink Active</div>)}<div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">System Online</div></div></header>
 
-      {/* Main Content Panels ... */}
       <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 relative max-w-[1920px] mx-auto w-full h-full">
         <section className={getPanelClass('nav')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><Bars3Icon className="w-4 h-4" /> Codex</h2><div className="window-controls"><button onClick={() => setIsSettingsOpen(true)} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors"><Cog6ToothIcon className="w-4 h-4" /></button><button onClick={() => toggleMaximize('nav')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'nav' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div>
         
+        {/* Nav Panel Content... */}
         <div className="sidebar-content p-4 md:p-6 flex-grow overflow-y-auto space-y-6 pb-24 md:pb-6">
             <div className="space-y-5">
                 <div className="space-y-2">
@@ -1293,10 +1409,63 @@ const App: React.FC = () => {
         </div>
         </section>
 
-        <section className={getPanelClass('reader')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><BookOpenIcon className="w-4 h-4" /> Scripture</h2><div className="window-controls"><div className="flex items-center gap-1 border-r border-[var(--color-accent-primary)]/20 pr-2 mr-2"><button onClick={() => handleChapterNav('prev')} disabled={selectedChapter <= 1} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronLeftIcon className="w-4 h-4" /></button><span className="text-[10px] font-mono text-[var(--color-accent-secondary)] w-6 text-center">{selectedChapter}</span><button onClick={() => handleChapterNav('next')} disabled={selectedChapter >= maxChapters} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronRightIcon className="w-4 h-4" /></button></div><button onClick={toggleReaderMode} className={`transition-colors p-1 ${isReaderMode ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isReaderMode ? "Reader Mode Active" : "Interlinear Mode"}><BookOpenIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={cycleFontSize} className="font-serif font-bold text-xs md:text-sm text-[#a0a8c0] hover:text-white transition-colors flex items-end leading-none" title="Toggle Font Size">T<span className="text-[0.8em]">t</span></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={toggleHover} className={`transition-colors p-1 ${isHoverEnabled ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isHoverEnabled ? "Disable Hover Decoder" : "Enable Hover Decoder"}><CursorArrowRaysIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={() => toggleMaximize('reader')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'reader' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div><div className="reader-content flex-1 overflow-y-auto p-4 md:p-12 relative scroll-smooth">{loading && (<div className="h-full flex flex-col items-center justify-center gap-6"><div className="w-16 h-16 border-2 border-[var(--color-accent-secondary)] border-t-transparent rounded-full animate-spin"></div><span className="tech-font text-xs uppercase tracking-[0.3em] text-[var(--color-accent-secondary)] animate-pulse">Receiving Transmission...</span></div>)}{!scriptureData && !loading && (<div className="h-full flex flex-col items-center justify-center text-[#a0a8c0] opacity-50"><BookOpenIcon className="w-20 h-20 mb-6 stroke-1 text-[var(--color-accent-primary)]" /><p className="tech-font text-sm uppercase tracking-[0.2em]">Select text to begin</p></div>)}{scriptureData && !loading && (<div className="max-w-4xl mx-auto space-y-16 animate-fadeIn pb-32"><div className="text-center"><h2 className="text-2xl md:text-6xl font-normal text-white mb-4 cinzel-font tracking-widest cyan-glow">{activeRef.book} <span className="text-white ml-3">{activeRef.chapter}{activeRef.verse ? `:${activeRef.verse}` : ''}</span></h2><div className="h-[1px] w-32 md:w-48 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent mx-auto opacity-70"></div></div><div id="readerContent" className={`space-y-6 md:space-y-8 ${isReaderMode ? 'mode-reader' : ''}`}>{hebrewVerses.map((verse, idx) => (<div key={idx} className="verse-block group relative p-4 md:p-8 border border-white/0 hover:border-[var(--color-accent-secondary)]/20 hover:bg-[var(--color-accent-primary)]/5 transition-all duration-500 rounded-2xl"><div className="flex gap-3 md:gap-4 items-start"><div className="flex-shrink-0 pt-1.5 md:pt-2 flex items-center"><button id={`btn-${idx}`} className={`ai-scan-btn ${scanStatuses[idx] === 'scanning' ? 'scanning-pulse' : ''} ${scanStatuses[idx] === 'complete' ? 'scan-success' : ''}`} onClick={() => scanVerse(idx, verse, englishVerses[idx]?.replace(/<[^>]*>?/gm, ''))} title={isAdmin ? "Analyze Verse with Gemini AI" : "Neural Link Offline // Login Required"} disabled={!isAdmin || scanStatuses[idx] === 'scanning' || window.IS_SCANNING}>{!isAdmin ? <LockClosedIcon className="w-4 h-4 text-white/30" /> : scanStatuses[idx] === 'scanning' ? '⏳' : scanStatuses[idx] === 'complete' ? '✅' : scanStatuses[idx] === 'error' ? '⚠️' : '⚡'}</button><span className={`${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10 h-fit`}>{activeRef.verse ? activeRef.verse : idx + 1}</span></div><div className="flex-grow"><p className={`english-line text-[#a0a8c0] font-light font-sans leading-loose mb-6 group-hover:text-white transition-colors ${englishSizeClass} ${isReaderMode ? '' : 'italic'}`}>{renderEnglishVerse(englishVerses[idx]?.replace(/<[^>]*>?/gm, ''), idx)}</p><div className="hebrew-line text-right border-t border-[var(--color-accent-primary)]/20 pt-4" dir="rtl">{renderHebrewVerse(verse, activeRef.verse ? activeRef.verse - 1 : idx)}</div></div></div></div>))}</div><div className="pt-12 border-t border-[var(--color-accent-primary)]/20 flex justify-center pb-8">{selectedChapter < maxChapters && (<button onClick={() => handleChapterNav('next')} className="group flex items-center gap-4 px-8 py-4 rounded-full bg-[var(--color-accent-primary)]/10 hover:bg-[var(--color-accent-primary)]/20 border border-[var(--color-accent-primary)]/30 hover:border-[var(--color-accent-secondary)] transition-all duration-300"><span className="tech-font text-xs uppercase tracking-[0.3em] text-white">Next Chapter</span><ChevronRightIcon className="w-5 h-5 text-[var(--color-accent-secondary)] group-hover:translate-x-1 transition-transform" /></button>)}</div></div>)}</div></section>
+        <section className={getPanelClass('reader')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><BookOpenIcon className="w-4 h-4" /> Scripture</h2><div className="window-controls"><div className="flex items-center gap-1 border-r border-[var(--color-accent-primary)]/20 pr-2 mr-2"><button onClick={() => handleChapterNav('prev')} disabled={!showPrevButton} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronLeftIcon className="w-4 h-4" /></button><span className="text-[10px] font-mono text-[var(--color-accent-secondary)] w-6 text-center">{selectedChapter}</span><button onClick={() => handleChapterNav('next')} disabled={!showNextButton} className="p-1 text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] disabled:opacity-30 disabled:hover:text-[#a0a8c0] transition-colors"><ChevronRightIcon className="w-4 h-4" /></button></div><button onClick={toggleReaderMode} className={`transition-colors p-1 ${isReaderMode ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isReaderMode ? "Reader Mode Active" : "Interlinear Mode"}><BookOpenIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={cycleFontSize} className="font-serif font-bold text-xs md:text-sm text-[#a0a8c0] hover:text-white transition-colors flex items-end leading-none" title="Toggle Font Size">T<span className="text-[0.8em]">t</span></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={toggleHover} className={`transition-colors p-1 ${isHoverEnabled ? 'text-[var(--color-accent-secondary)]' : 'text-[#a0a8c0] hover:text-white'}`} title={isHoverEnabled ? "Disable Hover Decoder" : "Enable Hover Decoder"}><CursorArrowRaysIcon className="w-4 h-4 md:w-5 md:h-5" /></button><div className="w-[1px] h-4 bg-[var(--color-accent-primary)]/20 mx-1"></div><button onClick={() => toggleMaximize('reader')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'reader' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div>
+        
+        <div className="reader-content flex-1 overflow-y-auto p-4 md:p-12 relative scroll-smooth">
+            {loading && (<div className="h-full flex flex-col items-center justify-center gap-6"><div className="w-16 h-16 border-2 border-[var(--color-accent-secondary)] border-t-transparent rounded-full animate-spin"></div><span className="tech-font text-xs uppercase tracking-[0.3em] text-[var(--color-accent-secondary)] animate-pulse">Receiving Transmission...</span></div>)}
+            {!scriptureData && !loading && (<div className="h-full flex flex-col items-center justify-center text-[#a0a8c0] opacity-50"><BookOpenIcon className="w-20 h-20 mb-6 stroke-1 text-[var(--color-accent-primary)]" /><p className="tech-font text-sm uppercase tracking-[0.2em]">Select text to begin</p></div>)}
+            {scriptureData && !loading && (
+                <div className="max-w-4xl mx-auto space-y-16 animate-fadeIn pb-32">
+                    <div className="text-center"><h2 className="text-2xl md:text-6xl font-normal text-white mb-4 cinzel-font tracking-widest cyan-glow">{activeRef.book} <span className="text-white ml-3">{activeRef.chapter}{activeRef.verse ? `:${activeRef.verse}` : ''}</span></h2><div className="h-[1px] w-32 md:w-48 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent mx-auto opacity-70"></div></div>
+                    <div id="readerContent" className={`space-y-6 md:space-y-8 ${isReaderMode ? 'mode-reader' : ''}`}>
+                        {hebrewVerses.map((verse, idx) => (<div key={idx} className="verse-block group relative p-4 md:p-8 border border-white/0 hover:border-[var(--color-accent-secondary)]/20 hover:bg-[var(--color-accent-primary)]/5 transition-all duration-500 rounded-2xl"><div className="flex gap-3 md:gap-4 items-start"><div className="flex-shrink-0 pt-1.5 md:pt-2 flex items-center"><button id={`btn-${idx}`} className={`ai-scan-btn ${scanStatuses[idx] === 'scanning' ? 'scanning-pulse' : ''} ${scanStatuses[idx] === 'complete' ? 'scan-success' : ''}`} onClick={() => scanVerse(idx, verse, englishVerses[idx]?.replace(/<[^>]*>?/gm, ''))} title={isAdmin ? "Analyze Verse with Gemini AI" : "Neural Link Offline // Login Required"} disabled={!isAdmin || scanStatuses[idx] === 'scanning' || window.IS_SCANNING}>{!isAdmin ? <LockClosedIcon className="w-4 h-4 text-white/30" /> : scanStatuses[idx] === 'scanning' ? '⏳' : scanStatuses[idx] === 'complete' ? '✅' : scanStatuses[idx] === 'error' ? '⚠️' : '⚡'}</button><span className={`${verseNumSizeClass} text-[var(--color-accent-secondary)] font-mono select-none px-2 py-1 rounded-md bg-[var(--color-accent-primary)]/10 h-fit`}>{activeRef.verse ? activeRef.verse : idx + 1}</span></div><div className="flex-grow"><p className={`english-line text-[#a0a8c0] font-light font-sans leading-loose mb-6 group-hover:text-white transition-colors ${englishSizeClass} ${isReaderMode ? '' : 'italic'}`}>{renderEnglishVerse(englishVerses[idx]?.replace(/<[^>]*>?/gm, ''), idx)}</p><div className="hebrew-line text-right border-t border-[var(--color-accent-primary)]/20 pt-4" dir="rtl">{renderHebrewVerse(verse, activeRef.verse ? activeRef.verse - 1 : idx)}</div></div></div></div>))}
+                    </div>
+                    
+                    {/* SMART FOOTER NAVIGATION */}
+                    <div className="pt-12 border-t border-[var(--color-accent-primary)]/20 flex justify-between items-center pb-8 gap-4">
+                        {/* Prev Button */}
+                        <div className="flex-1 flex justify-start">
+                            {showPrevButton && (
+                                <button 
+                                    onClick={() => handleChapterNav('prev')} 
+                                    className="group flex items-center gap-4 px-6 py-4 rounded-full bg-[var(--color-accent-primary)]/10 hover:bg-[var(--color-accent-primary)]/20 border border-[var(--color-accent-primary)]/30 hover:border-[var(--color-accent-secondary)] transition-all duration-300"
+                                >
+                                    <ChevronLeftIcon className="w-5 h-5 text-[var(--color-accent-secondary)] group-hover:-translate-x-1 transition-transform" />
+                                    <div className="flex flex-col items-start">
+                                        <span className="tech-font text-[10px] uppercase tracking-[0.2em] text-white/60">Previous</span>
+                                        <span className="text-white text-xs font-bold uppercase tracking-wider">
+                                            {selectedChapter > 1 ? "Previous Chapter" : `Return to ${prevBookName}`}
+                                        </span>
+                                    </div>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Next Button */}
+                        <div className="flex-1 flex justify-end">
+                            {showNextButton && (
+                                <button 
+                                    onClick={() => handleChapterNav('next')} 
+                                    className="group flex items-center gap-4 px-6 py-4 rounded-full bg-[var(--color-accent-primary)]/10 hover:bg-[var(--color-accent-primary)]/20 border border-[var(--color-accent-primary)]/30 hover:border-[var(--color-accent-secondary)] transition-all duration-300"
+                                >
+                                    <div className="flex flex-col items-end">
+                                        <span className="tech-font text-[10px] uppercase tracking-[0.2em] text-white/60">Next</span>
+                                        <span className="text-white text-xs font-bold uppercase tracking-wider">
+                                            {selectedChapter < maxChapters ? "Next Chapter" : `Begin ${nextBookName}`}
+                                        </span>
+                                    </div>
+                                    <ChevronRightIcon className="w-5 h-5 text-[var(--color-accent-secondary)] group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+        </section>
 
         <section className={getPanelClass('decoder')}>
-          {/* UPDATED HEADER with Letter Bank Button */}
+          {/* ... Decoder Panel Content ... */}
           <div className="panel-header">
             <h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2">
               <MagnifyingGlassIcon className="w-4 h-4" /> 
