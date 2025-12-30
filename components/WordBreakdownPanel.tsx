@@ -16,6 +16,7 @@ interface WordBreakdownPanelProps {
   onOpenDictionary?: (char?: string) => void;
   voiceGender: 'male' | 'female';
   enableTTS: boolean;
+  isGuest?: boolean;
 }
 
 // --- Audio Helper Functions ---
@@ -58,7 +59,8 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
   onTriggerExport,
   onOpenDictionary,
   voiceGender,
-  enableTTS
+  enableTTS,
+  isGuest = false
 }) => {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
@@ -69,6 +71,9 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
 
   // --- TURBO AUDIO: Fetch & Play Logic ---
   const getAndPlayAudio = async (text: string, forcePlay: boolean) => {
+      // STRICT GUEST CHECK: Disable audio completely for guests
+      if (isGuest) return;
+
       if (!text || !enableTTS) return;
 
       const cacheKey = `${text}_${voiceGender}`;
@@ -158,11 +163,11 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
 
   // --- EFFECT: Pre-fetch Audio on Word Change ---
   useEffect(() => {
-      if (selectedWord?.cleanText && enableTTS) {
+      if (selectedWord?.cleanText && enableTTS && !isGuest) {
           // Silent fetch (background caching)
           getAndPlayAudio(selectedWord.cleanText, false);
       }
-  }, [selectedWord?.cleanText, voiceGender, enableTTS]);
+  }, [selectedWord?.cleanText, voiceGender, enableTTS, isGuest]);
 
 
   const getCleanHebrew = (text: string): string => text.replace(/[^\u05D0-\u05EA]/g, "");
@@ -213,7 +218,7 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                <span className="verse-badge text-[10px] uppercase tracking-widest bg-[var(--color-accent-primary)]/20 px-3 py-1 rounded text-[var(--color-accent-secondary)] border border-[var(--color-accent-primary)]/40">
                   {selectedWord ? `${bookName} ${chapter}:${selectedWord.verseIndex + 1}` : "--"}
                </span>
-               {hasData && (
+               {hasData && !isGuest && (
                  <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-[var(--color-accent-secondary)] bg-[var(--color-accent-primary)]/20 px-2 py-0.5 rounded border border-[var(--color-accent-secondary)]/30">
                     <CpuChipIcon className="w-3 h-3" />
                     <span>Gemini v3.0</span>
@@ -233,8 +238,8 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                             {selectedWord ? selectedWord.text : "--"}
                         </span>
                         
-                        {/* Audio Button - Floating Right */}
-                        {selectedWord && enableTTS && (
+                        {/* Audio Button - Floating Right (HIDDEN FOR GUESTS) */}
+                        {selectedWord && enableTTS && !isGuest && (
                             <button 
                                 onClick={() => getAndPlayAudio(selectedWord.cleanText, true)}
                                 disabled={isAudioPlaying}
@@ -348,15 +353,17 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
         </>
       )}
 
+      {/* EXPORT BUTTON - Visible for Everyone, Disabled for Guests */}
       <div className="flex flex-col gap-3 mt-auto">
-        <button 
-          onClick={onTriggerExport}
-          disabled={!selectedWord}
-          className="w-full electric-gradient text-white py-5 rounded-2xl text-xs uppercase tracking-[0.2em] font-bold flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
-        >
-          <SwatchIcon className="w-5 h-5" />
-          Design Card
-        </button>
+          <button 
+            onClick={onTriggerExport}
+            disabled={!selectedWord || isGuest}
+            className={`w-full electric-gradient text-white py-5 rounded-2xl text-xs uppercase tracking-[0.2em] font-bold flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 ${isGuest ? 'grayscale opacity-40 hover:none' : ''}`}
+            title={isGuest ? "Login required to access Design Studio" : "Create Export Card"}
+          >
+            <SwatchIcon className="w-5 h-5" />
+            Design Card {isGuest && '(Locked)'}
+          </button>
       </div>
     </div>
   );

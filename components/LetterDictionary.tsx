@@ -9,6 +9,7 @@ interface LetterDictionaryProps {
   targetChar?: string | null;
   voiceGender: 'male' | 'female';
   enableTTS: boolean;
+  isGuest?: boolean;
 }
 
 // --- Audio Helper Functions ---
@@ -41,7 +42,7 @@ async function decodeAudioData(
   return buffer;
 }
 
-const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar, voiceGender, enableTTS }) => {
+const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar, voiceGender, enableTTS, isGuest = false }) => {
   const [playingLetter, setPlayingLetter] = useState<string | null>(null);
 
   // Initialize Global Cache if missing
@@ -51,6 +52,9 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
 
   // --- TURBO AUDIO: Fetch & Play Logic ---
   const getAndPlayAudio = async (text: string, forcePlay: boolean) => {
+      // STRICT GUEST CHECK
+      if (isGuest) return;
+
       if (!text || !enableTTS) return;
       
       const cacheKey = `${text}_${voiceGender}`;
@@ -140,7 +144,7 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
 
   // --- BATCH PRE-LOADER ---
   useEffect(() => {
-    if (!enableTTS) return;
+    if (!enableTTS || isGuest) return;
     
     // Secretly download audio for all 22 letters instantly
     console.log("🚀 Starting Dictionary Turbo Pre-load...");
@@ -148,7 +152,7 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
         const audioTerm = LETTER_AUDIO_MAP[letter.char] || letter.name;
         getAndPlayAudio(audioTerm, false); // Fetch silently
     });
-  }, [voiceGender, enableTTS]); // Re-fetch if gender or enable state changes
+  }, [voiceGender, enableTTS, isGuest]); // Re-fetch if gender or enable state changes
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -220,8 +224,8 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
                                   {letter.name}
                               </h3>
                               
-                              {/* Small Audio Button */}
-                              {enableTTS && (
+                              {/* Small Audio Button - HIDDEN FOR GUESTS */}
+                              {enableTTS && !isGuest && (
                                 <button 
                                     onClick={() => getAndPlayAudio(audioTerm, true)}
                                     disabled={isPlaying}
@@ -240,7 +244,7 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
                           </div>
                           {letter.pronunciation && (
                               <span className="inline-block px-2 py-1 bg-[#0a0a14] border border-white/20 rounded text-[var(--color-accent-secondary)] text-xs font-mono tracking-wide mb-2">
-                                  {enableTTS && "🔊"} {letter.pronunciation}
+                                  {enableTTS && !isGuest && "🔊"} {letter.pronunciation}
                               </span>
                           )}
                       </div>
