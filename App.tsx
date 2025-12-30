@@ -890,8 +890,9 @@ const App: React.FC = () => {
         </section>
 
         {/* --- SECTION 2: ABOUT (UPDATED TEXT) --- */}
-        <section id="about" className="landing-section bg-black/40 backdrop-blur-sm border-t border-white/5">
-             <div className="max-w-3xl text-center space-y-8">
+        <section id="about" className="landing-section nebula-bg border-t border-white/5">
+             <div className="starfield-bg"></div>
+             <div className="max-w-3xl text-center space-y-8 relative z-10">
                  <h2 className="cinzel-font text-3xl md:text-5xl text-white tracking-widest mb-6">Our Mission</h2>
                  <p className="text-lg md:text-xl text-[#a0a8c0] font-light leading-relaxed font-serif">
                     The Genesis Suite is a sanctuary for clarity. We exist to bridge the distance between ancient Hebrew wisdom and modern understanding.
@@ -906,82 +907,85 @@ const App: React.FC = () => {
         </section>
 
         {/* --- SECTION 3: FEATURES (Glass Cards Slider) --- */}
-        <section id="features" className="landing-section border-t border-white/5 bg-black/20">
-             <h2 className="cinzel-font text-3xl md:text-4xl text-white tracking-widest mb-16 text-center">System Capabilities</h2>
-             
-             <div className="w-full max-w-6xl px-4 overflow-x-auto pb-12 pt-4 flex gap-6 snap-x scrollbar-hide">
-                 {/* ... Features content ... */}
-                 {/* Feature 1: Linguistic Analysis (FIXED: Cyan colors) */}
-                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
-                     <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30 text-cyan-400">
-                         <CpuChipIcon className="w-6 h-6" />
+        <section id="features" className="landing-section border-t border-white/5 nebula-bg">
+             <div className="starfield-bg"></div>
+             <div className="relative z-10 w-full flex flex-col items-center">
+                 <h2 className="cinzel-font text-3xl md:text-4xl text-white tracking-widest mb-16 text-center">System Capabilities</h2>
+                 
+                 <div className="w-full max-w-6xl px-4 overflow-x-auto pb-12 pt-4 flex gap-6 snap-x scrollbar-hide">
+                     {/* ... Features content ... */}
+                     {/* Feature 1: Linguistic Analysis (FIXED: Cyan colors) */}
+                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                         <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30 text-cyan-400">
+                             <CpuChipIcon className="w-6 h-6" />
+                         </div>
+                         <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Linguistic Analysis</h3>
+                         <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                             Instant, in-depth analysis of Hebrew morphology, roots, and definitions powered by generative AI.
+                         </p>
                      </div>
-                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Linguistic Analysis</h3>
-                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
-                         Instant, in-depth analysis of Hebrew morphology, roots, and definitions powered by generative AI.
-                     </p>
-                 </div>
 
-                 {/* Feature 2: Paleo-Hebrew (FIXED: Violet/Purple colors) */}
-                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
-                     <div className="w-12 h-12 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/30 text-violet-400">
-                         <LightBulbIcon className="w-6 h-6" />
+                     {/* Feature 2: Paleo-Hebrew (FIXED: Violet/Purple colors) */}
+                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                         <div className="w-12 h-12 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/30 text-violet-400">
+                             <LightBulbIcon className="w-6 h-6" />
+                         </div>
+                         <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Paleo-Hebrew Visualization</h3>
+                         <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                             A visual breakdown of ancient letter meanings, revealing the concrete imagery behind abstract concepts.
+                         </p>
                      </div>
-                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Paleo-Hebrew Visualization</h3>
-                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
-                         A visual breakdown of ancient letter meanings, revealing the concrete imagery behind abstract concepts.
-                     </p>
-                 </div>
 
-                 {/* Feature 3: AI Companion */}
-                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
-                     <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/30 text-purple-400">
-                         <ChatBubbleLeftRightIcon className="w-6 h-6" />
+                     {/* Feature 3: AI Companion */}
+                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                         <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/30 text-purple-400">
+                             <ChatBubbleLeftRightIcon className="w-6 h-6" />
+                         </div>
+                         <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Intelligent Companion</h3>
+                         <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                             An empathetic, context-aware AI assistant capable of answering complex theological inquiries with precision.
+                         </p>
                      </div>
-                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Intelligent Companion</h3>
-                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
-                         An empathetic, context-aware AI assistant capable of answering complex theological inquiries with precision.
-                     </p>
-                 </div>
 
-                 {/* Feature 4: Personal Archives */}
-                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
-                     <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30 text-emerald-400">
-                         <ShieldCheckIcon className="w-6 h-6" />
+                     {/* Feature 4: Personal Archives */}
+                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                         <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30 text-emerald-400">
+                             <ShieldCheckIcon className="w-6 h-6" />
+                         </div>
+                         <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Personal Archives</h3>
+                         <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                             Securely save your insights and build a personal library of revelations within a digital vault.
+                         </p>
                      </div>
-                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Personal Archives</h3>
-                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
-                         Securely save your insights and build a personal library of revelations within a digital vault.
-                     </p>
-                 </div>
 
-                 {/* Feature 5: Voice Synthesis */}
-                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
-                     <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/30 text-orange-400">
-                         <SpeakerWaveIcon className="w-6 h-6" />
+                     {/* Feature 5: Voice Synthesis */}
+                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                         <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/30 text-orange-400">
+                             <SpeakerWaveIcon className="w-6 h-6" />
+                         </div>
+                         <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Voice Synthesis</h3>
+                         <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                             High-fidelity text-to-speech capabilities for accurate Hebrew pronunciation and immersive listening.
+                         </p>
                      </div>
-                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Voice Synthesis</h3>
-                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
-                         High-fidelity text-to-speech capabilities for accurate Hebrew pronunciation and immersive listening.
-                     </p>
-                 </div>
 
-                 {/* Feature 6: Export Studio */}
-                 <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
-                     <div className="w-12 h-12 rounded-full bg-pink-500/10 flex items-center justify-center border border-pink-500/30 text-pink-400">
-                         <SwatchIcon className="w-6 h-6" />
+                     {/* Feature 6: Export Studio */}
+                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                         <div className="w-12 h-12 rounded-full bg-pink-500/10 flex items-center justify-center border border-pink-500/30 text-pink-400">
+                             <SwatchIcon className="w-6 h-6" />
+                         </div>
+                         <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Export Studio</h3>
+                         <p className="text-sm text-[#a0a8c0] leading-relaxed">
+                             Create, customize, and export elegant visual cards to share your favorite verses and spiritual insights.
+                         </p>
                      </div>
-                     <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Export Studio</h3>
-                     <p className="text-sm text-[#a0a8c0] leading-relaxed">
-                         Create, customize, and export elegant visual cards to share your favorite verses and spiritual insights.
-                     </p>
                  </div>
              </div>
         </section>
 
         {/* --- SECTION 4: ULTRA-PREMIUM PRICING --- */}
-        <section id="pricing" className="landing-section pricing-nebula-bg border-t border-white/5">
-             <div className="pricing-starfield"></div>
+        <section id="pricing" className="landing-section nebula-bg border-t border-white/5">
+             <div className="starfield-bg"></div>
              <div className="relative z-10 flex flex-col items-center mb-16 text-center px-4">
                  <p className="text-xs tech-font text-[var(--color-accent-secondary)] uppercase tracking-[0.3em] mb-4">Mission Packages</p>
                  <h2 className="cinzel-font text-3xl md:text-5xl text-white tracking-widest mb-6">Choose Your Path</h2>
@@ -1095,8 +1099,9 @@ const App: React.FC = () => {
         </section>
 
         {/* --- SECTION 5: CONTACT --- */}
-        <section id="contact" className="landing-section border-t border-white/5 bg-black/60 backdrop-blur-md">
-             <div className="max-w-2xl w-full flex flex-col items-center">
+        <section id="contact" className="landing-section nebula-bg border-t border-white/5">
+             <div className="starfield-bg"></div>
+             <div className="max-w-2xl w-full flex flex-col items-center relative z-10">
                  <h2 className="cinzel-font text-3xl md:text-4xl text-white tracking-widest mb-4">Direct Contact</h2>
                  <p className="text-xs tech-font uppercase tracking-[0.3em] text-[var(--color-accent-secondary)] mb-12">Submit Priority Request</p>
                  
