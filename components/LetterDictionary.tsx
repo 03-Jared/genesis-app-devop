@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { LETTER_DETAILS, LETTER_AUDIO_MAP } from '../constants';
-import { ArrowLeftIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, SpeakerWaveIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { GoogleGenAI, Modality } from "@google/genai";
 
 interface LetterDictionaryProps {
@@ -199,15 +199,31 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
         {LETTER_DETAILS.map((letter, index) => {
           const audioTerm = LETTER_AUDIO_MAP[letter.char] || letter.name;
           const isPlaying = playingLetter === audioTerm;
+          
+          // GUEST RESTRICTION LOGIC:
+          // Aleph (0) and Bet (1) are free. Index >= 2 is restricted.
+          const isRestricted = isGuest && index >= 2;
 
           return (
             <div 
               key={letter.char} 
               id={`dict-letter-${letter.char}`}
-              className="bg-[#121225] border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-xl hover:shadow-[0_0_30px_rgba(0,210,255,0.05)] transition-all duration-500"
+              className="bg-[#121225] border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-xl hover:shadow-[0_0_30px_rgba(0,210,255,0.05)] transition-all duration-500 relative"
             >
-              {/* Card Header */}
-              <div className="bg-[#1a1a2e] p-6 flex items-center gap-6 border-b-2 border-[var(--color-accent-secondary)]">
+              
+              {/* RESTRICTED OVERLAY */}
+              {isRestricted && (
+                  <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-[6px] flex flex-col items-center justify-center text-center p-6 border border-white/5 rounded-2xl">
+                      <div className="bg-black/80 p-6 rounded-full border border-[var(--color-accent-primary)] shadow-[0_0_30px_var(--color-accent-primary)] mb-4">
+                          <LockClosedIcon className="w-10 h-10 text-[var(--color-accent-secondary)]" />
+                      </div>
+                      <h3 className="cinzel-font text-2xl text-white tracking-widest mb-2">Restricted Access</h3>
+                      <p className="text-[#a0a8c0] tech-font text-xs uppercase tracking-widest">Login to unlock full archive</p>
+                  </div>
+              )}
+
+              {/* Card Header (Blurred if restricted) */}
+              <div className={`bg-[#1a1a2e] p-6 flex items-center gap-6 border-b-2 border-[var(--color-accent-secondary)] transition-all duration-300 ${isRestricted ? 'blur-sm opacity-50' : ''}`}>
                 <div className="w-[70px] h-[70px] bg-[#0a0a14] border border-white/10 rounded-xl flex items-center justify-center shrink-0">
                   <span className="text-4xl filter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
                     {letter.emoji}
@@ -255,9 +271,9 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
                 </div>
               </div>
 
-              {/* Card Body */}
+              {/* Card Body (Blurred if restricted) */}
               <div 
-                className="p-8 text-[#d0d0e0] leading-loose text-base md:text-lg font-light space-y-4"
+                className={`p-8 text-[#d0d0e0] leading-loose text-base md:text-lg font-light space-y-4 transition-all duration-300 ${isRestricted ? 'blur-sm opacity-50' : ''}`}
                 dangerouslySetInnerHTML={{ __html: letter.fullDetails }}
               />
             </div>
