@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS, DEFAULT_HEBREW_MAP, SOFIT_MAP } from './constants';
@@ -283,20 +284,11 @@ const App: React.FC = () => {
   };
 
   const unlockLoginScroll = () => {
-      setIsScrollLocked(false);
       setIsLoginVisible(false);
   };
 
   const triggerLoginLock = () => {
       setIsLoginVisible(true);
-      // Wait for DOM expansion (CSS transition), then scroll
-      setTimeout(() => {
-          scrollToSection('login');
-          // Wait for smooth scroll to actually finish before locking
-          setTimeout(() => {
-              setIsScrollLocked(true);
-          }, 800); 
-      }, 50); 
   };
 
   const toggleReaderMode = () => {
@@ -824,7 +816,7 @@ const App: React.FC = () => {
 
   if (showLanding) {
     return (
-      <div className={`landing-mode ${isScrollLocked ? 'overflow-hidden' : ''}`}>
+      <div className={`landing-mode`}>
         
         {/* Navigation - Top Right */}
         <nav className="landing-nav">
@@ -1132,21 +1124,15 @@ const App: React.FC = () => {
              </div>
         </section>
 
-        {/* --- SECTION 6: LOGIN --- */}
-        {/* Hidden (max-h-0) until clicked */}
-        <section 
-            id="login" 
-            ref={loginSectionRef}
-            className={`landing-section transition-all duration-700 ease-in-out ${isLoginVisible ? 'min-h-[100vh] h-auto opacity-100 py-20 border-t border-white/5 filter-none' : 'min-h-0 h-0 opacity-0 py-0 border-none overflow-hidden'}`}
-        >
+        {/* --- SECTION 6: LOGIN OVERLAY (REPLACED) --- */}
+        {isLoginVisible && (
+        <div className="fixed inset-0 z-[200] bg-[#000000]/90 backdrop-blur-xl flex items-center justify-center p-4 animate-fadeIn">
              <div className="max-w-md w-full bg-[#0a0a14] border border-white/10 p-10 rounded-3xl shadow-2xl relative overflow-hidden">
                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent"></div>
                  
-                 {isLoginVisible && (
-                     <button onClick={unlockLoginScroll} className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors" title="Unlock Scrolling">
-                         <XMarkIcon className="w-6 h-6" />
-                     </button>
-                 )}
+                 <button onClick={unlockLoginScroll} className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors" title="Close Login">
+                     <XMarkIcon className="w-6 h-6" />
+                 </button>
 
                  <div className="text-center mb-10">
                      <h2 className="cinzel-font text-2xl text-white tracking-widest mb-2">Admin Login</h2>
@@ -1188,10 +1174,11 @@ const App: React.FC = () => {
 
                  <div className="mt-8 text-center flex flex-col gap-2">
                      <a href="#" className="text-[9px] tech-font uppercase tracking-widest text-white/30 hover:text-white transition-colors">Recover Access Credentials</a>
-                     {isLoginVisible && <button onClick={unlockLoginScroll} className="text-[9px] tech-font uppercase tracking-widest text-red-400 hover:text-white transition-colors mt-2">Cancel / Unlock</button>}
+                     <button onClick={unlockLoginScroll} className="text-[9px] tech-font uppercase tracking-widest text-red-400 hover:text-white transition-colors mt-2">Cancel / Close</button>
                  </div>
              </div>
-        </section>
+        </div>
+        )}
         
         {/* Back to Top Button */}
         {!isScrollLocked && (
