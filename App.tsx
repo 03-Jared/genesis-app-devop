@@ -55,6 +55,9 @@ const THEMES = {
   rose: { primary: '#be185d', secondary: '#ffe4e6', name: 'Mystic Rose' }
 };
 
+// Explicit order for settings menu: Cyan, Purple, Rose (Free) | Green, Gold (Locked)
+const THEME_ORDER = ['cyan', 'purple', 'rose', 'green', 'gold'];
+
 window.VERSE_DATA = {};
 window.IS_SCANNING = false;
 window.AUDIO_CACHE = {}; // Initialize Turbo Cache
@@ -828,15 +831,15 @@ const App: React.FC = () => {
             </div>
         </section>
 
-        {/* --- SECTION 2: ABOUT --- */}
+        {/* --- SECTION 2: ABOUT (UPDATED TEXT) --- */}
         <section id="about" className="landing-section bg-black/40 backdrop-blur-sm border-t border-white/5">
              <div className="max-w-3xl text-center space-y-8">
                  <h2 className="cinzel-font text-3xl md:text-5xl text-white tracking-widest mb-6">Our Mission</h2>
                  <p className="text-lg md:text-xl text-[#a0a8c0] font-light leading-relaxed font-serif">
-                    The Genesis Suite is a sophisticated platform dedicated to the serious study of scripture. We bridge the gap between ancient theology and modern intelligence, providing a serene environment for deep textual analysis.
+                    The Genesis Suite is a sanctuary for clarity. We exist to bridge the distance between ancient Hebrew wisdom and modern understanding.
                  </p>
                  <p className="text-lg md:text-xl text-[#a0a8c0] font-light leading-relaxed font-serif">
-                    Our purpose is to preserve the integrity of the original Hebrew text while offering clarity through advanced analytical tools, fostering a profound and distraction-free study experience.
+                    By uniting the original manuscripts with elegant technology, we offer a distraction-free space where the text can speak for itself—undisturbed, precise, and profoundly clear.
                  </p>
                  <div className="pt-10">
                      <div className="h-[1px] w-32 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent mx-auto"></div>
@@ -849,7 +852,7 @@ const App: React.FC = () => {
              <h2 className="cinzel-font text-3xl md:text-4xl text-white tracking-widest mb-16 text-center">System Capabilities</h2>
              
              <div className="w-full max-w-6xl px-4 overflow-x-auto pb-12 pt-4 flex gap-6 snap-x scrollbar-hide">
-                 
+                 {/* ... Features content ... */}
                  {/* Feature 1: Linguistic Analysis */}
                  <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
                      <div className="w-12 h-12 rounded-full bg-[var(--color-accent-secondary)]/10 flex items-center justify-center border border-[var(--color-accent-secondary)]/30 text-[var(--color-accent-secondary)]">
@@ -915,7 +918,6 @@ const App: React.FC = () => {
                          Create, customize, and export elegant visual cards to share your favorite verses and spiritual insights.
                      </p>
                  </div>
-
              </div>
         </section>
 
@@ -1044,7 +1046,7 @@ const App: React.FC = () => {
             className="chat-window-container flex flex-col"
             style={isChatMaximized ? { width: '100vw', height: '100dvh', bottom: 0, right: 0, borderRadius: 0 } : {}}
         >
-            
+            {/* ... Chat Content ... */}
             <div className="chat-header">
                 <div className="chat-title">
                     <span className={`chat-status ${!isAdmin ? 'bg-red-500 shadow-red-500' : ''}`}></span>
@@ -1155,6 +1157,7 @@ const App: React.FC = () => {
 
       <header className="hidden md:flex justify-between items-center py-2 px-4 border-b border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 rounded-2xl mb-2 backdrop-blur-sm"><h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}</h1><div className="flex items-center gap-4">{Object.values(scanStatuses).some(s => s === 'scanning') && (<div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]"><span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>Gemini Uplink Active</div>)}<div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">System Online</div></div></header>
 
+      {/* Main Content Panels ... */}
       <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 relative max-w-[1920px] mx-auto w-full h-full">
         <section className={getPanelClass('nav')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><Bars3Icon className="w-4 h-4" /> Codex</h2><div className="window-controls"><button onClick={() => setIsSettingsOpen(true)} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors"><Cog6ToothIcon className="w-4 h-4" /></button><button onClick={() => toggleMaximize('nav')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'nav' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div>
         
@@ -1311,7 +1314,6 @@ const App: React.FC = () => {
             ${isSettingsOpen ? 'translate-y-0' : 'translate-y-full'}
             md:relative md:inset-auto md:transform-none md:w-[90vw] md:max-w-6xl md:h-[80vh] md:rounded-3xl
         `}>
-            {/* ... Keep settings content same ... */}
              <div className="flex justify-between items-center px-8 py-6 border-b border-white/5 sticky top-0 bg-[#050714] z-20 rounded-t-[2.5rem] md:rounded-t-3xl">
                 <div className="flex items-center gap-3"><Cog6ToothIcon className="w-6 h-6 text-[var(--color-accent-secondary)] animate-spin-slow" /><h2 className="cinzel-font text-xl text-white tracking-widest">Configuration</h2></div>
                 <button onClick={() => setIsSettingsOpen(false)} className="p-3 bg-white/5 hover:bg-[var(--color-accent-primary)]/20 rounded-full text-white transition-colors"><XMarkIcon className="w-6 h-6" /></button>
@@ -1319,24 +1321,93 @@ const App: React.FC = () => {
             
             <div className="flex-grow overflow-y-auto px-6 py-8 md:p-10 pb-32 md:pb-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* PRISM CORE SECTION */}
                   <div className="flex flex-col gap-6">
                       <div className="glass-panel p-8 rounded-3xl relative bg-white/5">
                         <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-accent-secondary)]"></div>
                         <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6"><SwatchIcon className="w-4 h-4" /> Prism Core</h3>
                         <div className="max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
                             <div className="grid grid-cols-2 gap-4">
-                                {Object.entries(THEMES).map(([key, theme]) => (
-                                  <button key={key} onClick={() => setSettings(s => ({...s, theme: key as any}))} className={`relative h-24 rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-1 ${settings.theme === key ? 'border-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'border-transparent opacity-50 hover:opacity-100'}`} style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)` }}>
-                                    <span className="relative z-10 font-bold text-white text-xs uppercase tracking-wider">{theme.name.split(' ')[1]}</span>
-                                    {settings.theme === key && <div className="absolute inset-0 bg-white/10"></div>}
-                                  </button>
-                                ))}
+                                {THEME_ORDER.map((key) => {
+                                  const theme = THEMES[key as keyof typeof THEMES];
+                                  const isLocked = !isAdmin && (key === 'green' || key === 'gold');
+                                  
+                                  return (
+                                    <button 
+                                        key={key} 
+                                        onClick={() => !isLocked && setSettings(s => ({...s, theme: key as any}))} 
+                                        className={`relative h-24 rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center gap-1 ${settings.theme === key ? 'border-white scale-105 shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'border-transparent opacity-50 hover:opacity-100'} ${isLocked ? 'grayscale opacity-30 cursor-not-allowed pointer-events-none' : ''}`} 
+                                        style={{ background: `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)` }}
+                                    >
+                                        <span className="relative z-10 font-bold text-white text-xs uppercase tracking-wider">{theme.name.split(' ')[1]}</span>
+                                        {settings.theme === key && <div className="absolute inset-0 bg-white/10"></div>}
+                                        {isLocked && <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl"><LockClosedIcon className="w-6 h-6 text-white/50" /></div>}
+                                    </button>
+                                  );
+                                })}
                             </div>
                         </div>
                       </div>
                   </div>
-                  {/* ... Only show advanced settings if admin, or just keep visuals ... */}
-                  {/* For brevity, keeping settings available for guests to change colors */}
+                  
+                  {/* ADVANCED SETTINGS (LOCKED FOR GUESTS VISUALLY) */}
+                  <div className="flex flex-col gap-6 relative">
+                      {/* Visual Lock Overlay for Guests */}
+                      {!isAdmin && (
+                          <div className="absolute inset-0 z-50 bg-gray-900/10 backdrop-blur-[1px] rounded-3xl border border-white/5 flex items-center justify-center pointer-events-none">
+                              {/* No text/icon needed, just the glass effect as requested */}
+                          </div>
+                      )}
+
+                      {/* --- Voice Synthesis Settings --- */}
+                      <div className={`glass-panel p-8 rounded-3xl relative bg-white/5 ${!isAdmin ? 'opacity-50' : ''}`}>
+                          <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6"><SpeakerWaveIcon className="w-4 h-4" /> Voice Synthesis</h3>
+                          <div className="flex flex-col gap-4">
+                              <div className="flex items-center justify-between">
+                                  <span className="text-sm text-white/70">Enable TTS</span>
+                                  <button 
+                                      onClick={() => isAdmin && setSettings(s => ({...s, enableTTS: !s.enableTTS}))}
+                                      className={`w-12 h-6 rounded-full transition-colors relative ${settings.enableTTS ? 'bg-[var(--color-accent-secondary)]' : 'bg-white/10'}`}
+                                  >
+                                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${settings.enableTTS ? 'left-7' : 'left-1'}`}></div>
+                                  </button>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                  <span className="text-sm text-white/70">Voice Gender</span>
+                                  <div className="flex bg-black/40 rounded-lg p-1">
+                                      <button 
+                                          onClick={() => isAdmin && setSettings(s => ({...s, voiceGender: 'male'}))}
+                                          className={`px-4 py-2 rounded-md text-xs uppercase tracking-wider transition-colors ${settings.voiceGender === 'male' ? 'bg-white/10 text-white' : 'text-white/40'}`}
+                                      >
+                                          Male
+                                      </button>
+                                      <button 
+                                          onClick={() => isAdmin && setSettings(s => ({...s, voiceGender: 'female'}))}
+                                          className={`px-4 py-2 rounded-md text-xs uppercase tracking-wider transition-colors ${settings.voiceGender === 'female' ? 'bg-white/10 text-white' : 'text-white/40'}`}
+                                      >
+                                          Female
+                                      </button>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* --- System Performance --- */}
+                      <div className={`glass-panel p-8 rounded-3xl relative bg-white/5 ${!isAdmin ? 'opacity-50' : ''}`}>
+                          <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6"><CpuChipIcon className="w-4 h-4" /> System Core</h3>
+                          <div className="flex flex-col gap-4">
+                              <div className="flex items-center justify-between">
+                                  <span className="text-sm text-white/70">Holographic Projection</span>
+                                  <button 
+                                      onClick={() => isAdmin && setSettings(s => ({...s, showHologram: !s.showHologram}))}
+                                      className={`w-12 h-6 rounded-full transition-colors relative ${settings.showHologram ? 'bg-[var(--color-accent-secondary)]' : 'bg-white/10'}`}
+                                  >
+                                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${settings.showHologram ? 'left-7' : 'left-1'}`}></div>
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
                 </div>
             </div>
         </div>

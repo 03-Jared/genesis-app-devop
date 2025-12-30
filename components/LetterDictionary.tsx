@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { LETTER_DETAILS, LETTER_AUDIO_MAP } from '../constants';
-import { ArrowLeftIcon, SpeakerWaveIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, SpeakerWaveIcon, LockClosedIcon, ArrowUpIcon } from '@heroicons/react/24/outline';
 import { GoogleGenAI, Modality } from "@google/genai";
 
 interface LetterDictionaryProps {
@@ -177,11 +177,16 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
     };
   }, [targetChar]);
 
+  const scrollToTop = () => {
+      const el = document.getElementById('dict-container');
+      if(el) el.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <div className="fixed inset-0 z-[5000] bg-[#0a0a14] overflow-y-auto flex flex-col animate-fadeIn">
+    <div id="dict-container" className="fixed inset-0 z-[5000] bg-[#0a0a14] overflow-y-auto flex flex-col animate-fadeIn">
       
-      {/* Sticky Header */}
-      <div className="sticky top-0 bg-[#0a0a14]/95 backdrop-blur-md px-6 py-4 border-b border-white/10 flex justify-between items-center z-10 shadow-lg">
+      {/* Sticky Header with Higher Z-Index */}
+      <div className="sticky top-0 bg-[#0a0a14]/95 backdrop-blur-md px-6 py-4 border-b border-white/10 flex justify-between items-center z-[100] shadow-lg">
         <h2 className="cinzel-font text-xl md:text-2xl text-white tracking-widest font-bold">
           Hebrew Pictograph Dictionary
         </h2>
@@ -195,14 +200,14 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
       </div>
 
       {/* List Wrapper */}
-      <div className="flex-1 w-full max-w-4xl mx-auto p-6 md:p-10 space-y-8">
+      <div className="flex-1 w-full max-w-4xl mx-auto p-6 md:p-10 space-y-8 relative z-0">
         {LETTER_DETAILS.map((letter, index) => {
           const audioTerm = LETTER_AUDIO_MAP[letter.char] || letter.name;
           const isPlaying = playingLetter === audioTerm;
           
           // GUEST RESTRICTION LOGIC:
-          // Aleph (0) and Bet (1) are free. Index >= 2 is restricted.
-          const isRestricted = isGuest && index >= 2;
+          // Aleph (0) is free. Bet (1) and higher are restricted.
+          const isRestricted = isGuest && index >= 1;
 
           return (
             <div 
@@ -211,9 +216,9 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
               className="bg-[#121225] border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-xl hover:shadow-[0_0_30px_rgba(0,210,255,0.05)] transition-all duration-500 relative"
             >
               
-              {/* RESTRICTED OVERLAY */}
+              {/* RESTRICTED OVERLAY - Z-Index 10 is lower than Header (100) */}
               {isRestricted && (
-                  <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-[6px] flex flex-col items-center justify-center text-center p-6 border border-white/5 rounded-2xl">
+                  <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-[6px] flex flex-col items-center justify-center text-center p-6 border border-white/5 rounded-2xl">
                       <div className="bg-black/80 p-6 rounded-full border border-[var(--color-accent-primary)] shadow-[0_0_30px_var(--color-accent-primary)] mb-4">
                           <LockClosedIcon className="w-10 h-10 text-[var(--color-accent-secondary)]" />
                       </div>
@@ -280,7 +285,17 @@ const LetterDictionary: React.FC<LetterDictionaryProps> = ({ onClose, targetChar
           );
         })}
         
-        <div className="text-center py-10 text-white/20 tech-font uppercase tracking-widest text-xs">
+        <div className="flex justify-center pb-12 pt-6">
+            <button 
+                onClick={scrollToTop}
+                className="flex items-center gap-2 px-6 py-3 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[var(--color-accent-secondary)] transition-all group"
+            >
+                <span className="text-xs uppercase tracking-widest text-white/60 group-hover:text-white">Back to Top</span>
+                <ArrowUpIcon className="w-4 h-4 text-[var(--color-accent-secondary)] group-hover:-translate-y-1 transition-transform" />
+            </button>
+        </div>
+
+        <div className="text-center pb-10 text-white/20 tech-font uppercase tracking-widest text-xs">
           End of Database
         </div>
       </div>

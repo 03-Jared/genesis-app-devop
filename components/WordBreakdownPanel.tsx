@@ -346,7 +346,8 @@ const WordBreakdownPanel: React.FC<WordBreakdownPanelProps> = ({
                 <textarea 
                     value={journalNote}
                     onChange={(e) => onNoteChange(e.target.value)}
-                    className="w-full bg-[#090a20]/40 border border-white/10 rounded-lg p-3 text-sm text-[#a0a8c0] focus:border-[var(--color-accent-secondary)] outline-none resize-none h-24"
+                    readOnly={isGuest}
+                    className={`w-full bg-[#090a20]/40 border border-white/10 rounded-lg p-3 text-sm text-[#a0a8c0] focus:border-[var(--color-accent-secondary)] outline-none resize-none h-24 ${isGuest ? 'opacity-50 cursor-default select-none' : ''}`}
                     placeholder="Capture your spiritual insights..."
                 />
             </div>
