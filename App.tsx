@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS, DEFAULT_HEBREW_MAP, SOFIT_MAP } from './constants';
@@ -911,9 +909,9 @@ const App: React.FC = () => {
              
              <div className="w-full max-w-6xl px-4 overflow-x-auto pb-12 pt-4 flex gap-6 snap-x scrollbar-hide">
                  {/* ... Features content ... */}
-                 {/* Feature 1: Linguistic Analysis */}
+                 {/* Feature 1: Linguistic Analysis (FIXED: Cyan colors) */}
                  <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
-                     <div className="w-12 h-12 rounded-full bg-[var(--color-accent-secondary)]/10 flex items-center justify-center border border-[var(--color-accent-secondary)]/30 text-[var(--color-accent-secondary)]">
+                     <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30 text-cyan-400">
                          <CpuChipIcon className="w-6 h-6" />
                      </div>
                      <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Linguistic Analysis</h3>
@@ -922,9 +920,9 @@ const App: React.FC = () => {
                      </p>
                  </div>
 
-                 {/* Feature 2: Paleo-Hebrew */}
+                 {/* Feature 2: Paleo-Hebrew (FIXED: Violet/Purple colors) */}
                  <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
-                     <div className="w-12 h-12 rounded-full bg-[var(--color-accent-primary)]/10 flex items-center justify-center border border-[var(--color-accent-primary)]/30 text-[var(--color-accent-primary)]">
+                     <div className="w-12 h-12 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/30 text-violet-400">
                          <LightBulbIcon className="w-6 h-6" />
                      </div>
                      <h3 className="text-xl font-bold text-white tech-font uppercase tracking-wider">Paleo-Hebrew Visualization</h3>
