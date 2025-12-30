@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { BIBLE_BOOKS, BIBLE_DATA, BIBLE_VERSE_COUNTS, DEFAULT_HEBREW_MAP, SOFIT_MAP } from './constants';
@@ -977,9 +979,10 @@ const App: React.FC = () => {
              </div>
         </section>
 
-        {/* --- SECTION 4: PRICING (New) --- */}
-        <section id="pricing" className="landing-section border-t border-white/5 bg-black/40 backdrop-blur-sm">
-             <div className="flex flex-col items-center mb-16 text-center px-4">
+        {/* --- SECTION 4: ULTRA-PREMIUM PRICING --- */}
+        <section id="pricing" className="landing-section pricing-nebula-bg border-t border-white/5">
+             <div className="pricing-starfield"></div>
+             <div className="relative z-10 flex flex-col items-center mb-16 text-center px-4">
                  <p className="text-xs tech-font text-[var(--color-accent-secondary)] uppercase tracking-[0.3em] mb-4">Mission Packages</p>
                  <h2 className="cinzel-font text-3xl md:text-5xl text-white tracking-widest mb-6">Choose Your Path</h2>
                  <p className="text-lg md:text-xl text-[#a0a8c0] font-light leading-relaxed font-serif max-w-2xl">
@@ -987,111 +990,103 @@ const App: React.FC = () => {
                  </p>
              </div>
 
-             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
+             <div className="luxury-grid">
                  {/* Tier 1: The Scroll */}
-                 <div className="pricing-card">
-                     <h3 className="text-2xl font-bold text-white mb-2">The Scroll</h3>
-                     <p className="text-sm text-[#a0a8c0] mb-6">For casual visitors starting their journey.</p>
-                     <div className="text-4xl font-bold text-white mb-8">$0 <span className="text-sm font-normal text-[#a0a8c0]">/ month</span></div>
+                 <div className="luxury-card tier-scroll">
+                     <h3 className="tier-title">The Scroll</h3>
+                     <p className="tier-desc">For casual visitors starting their journey.</p>
+                     <div className="tier-price">$0 <span className="tier-period">/ month</span></div>
                      
-                     <div className="space-y-4 mb-8 flex-grow">
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300">Basic Hebrew Decoding</span>
+                     <div className="feature-list">
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-cyan-200" />
+                             <span className="feature-text">Basic Hebrew Decoding</span>
                          </div>
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300">Standard Pictograph View</span>
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-cyan-200" />
+                             <span className="feature-text">Standard Pictograph View</span>
                          </div>
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300">Dictionary Access</span>
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-cyan-200" />
+                             <span className="feature-text">Dictionary Access</span>
                          </div>
-                         <div className="flex items-start gap-3 opacity-50">
-                             <XCircleIcon className="w-5 h-5 pricing-x" />
-                             <span className="text-sm text-gray-500">No Rabbi AI Chatbot</span>
-                         </div>
-                         <div className="flex items-start gap-3 opacity-50">
-                             <XCircleIcon className="w-5 h-5 pricing-x" />
-                             <span className="text-sm text-gray-500">Standard Voice Only</span>
+                         <div className="feature-item opacity-40">
+                             <XCircleIcon className="feature-icon text-white" />
+                             <span className="feature-text">No Rabbi AI Chatbot</span>
                          </div>
                      </div>
                      
                      <button 
                         onClick={handleInitialize}
                         disabled={!username.trim()} 
-                        className="w-full py-3 rounded-lg border border-white/20 text-white hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="crystal-btn disabled:opacity-50 disabled:cursor-not-allowed"
                      >
                          Access Guest Mode
                      </button>
                  </div>
 
-                 {/* Tier 2: The Temple (Most Popular) */}
-                 <div className="pricing-card pricing-popular transform scale-105 z-10">
-                     <div className="popular-badge">Most Popular</div>
-                     <h3 className="text-2xl font-bold text-white mb-2">The Temple</h3>
-                     <p className="text-sm text-[#a0a8c0] mb-6">For serious students seeking deeper revelation.</p>
-                     <div className="text-4xl font-bold text-white mb-8">$15 <span className="text-sm font-normal text-[#a0a8c0]">/ month</span></div>
+                 {/* Tier 2: The Temple */}
+                 <div className="luxury-card tier-temple">
+                     <div className="luxury-badge">Most Popular</div>
+                     <h3 className="tier-title">The Temple</h3>
+                     <p className="tier-desc">For serious students seeking deeper revelation.</p>
+                     <div className="tier-price">$15 <span className="tier-period">/ month</span></div>
                      
-                     <div className="space-y-4 mb-8 flex-grow">
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300"><strong>Rabbi AI Chatbot</strong> (15/day)</span>
+                     <div className="feature-list">
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                             <span className="feature-text"><strong>Rabbi AI Chatbot</strong> (15/day)</span>
                          </div>
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300"><strong>Neural Voice</strong> (50 verses/day)</span>
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                             <span className="feature-text"><strong>Neural Voice</strong> (50 verses/day)</span>
                          </div>
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300"><strong>Card Studio</strong> (5 exports/day)</span>
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                             <span className="feature-text"><strong>Card Studio</strong> (5 exports/day)</span>
                          </div>
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300">Full Morphology Analysis</span>
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]" />
+                             <span className="feature-text">Full Morphology Analysis</span>
                          </div>
                      </div>
                      
                      <button 
                         onClick={triggerLoginLock}
-                        className="w-full py-3 rounded-lg bg-[var(--color-accent-secondary)] text-black font-bold hover:brightness-110 transition-colors text-xs uppercase tracking-widest shadow-[0_0_20px_rgba(0,210,255,0.3)]"
+                        className="crystal-btn"
                      >
                          Join The Temple
                      </button>
                  </div>
 
                  {/* Tier 3: The Heavens */}
-                 <div className="pricing-card">
-                     <h3 className="text-2xl font-bold text-white mb-2">The Heavens</h3>
-                     <p className="text-sm text-[#a0a8c0] mb-6">Unlimited access for true power users.</p>
-                     <div className="text-4xl font-bold text-white mb-8">$30 <span className="text-sm font-normal text-[#a0a8c0]">/ month</span></div>
+                 <div className="luxury-card tier-heavens">
+                     <h3 className="tier-title">The Heavens</h3>
+                     <p className="tier-desc">Unlimited access for true power users.</p>
+                     <div className="tier-price">$30 <span className="tier-period">/ month</span></div>
                      
-                     <div className="space-y-4 mb-8 flex-grow">
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300"><strong>Unlimited</strong> Rabbi AI Chat</span>
+                     <div className="feature-list">
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.6)]" />
+                             <span className="feature-text"><strong>Unlimited</strong> Rabbi AI Chat</span>
                          </div>
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300"><strong>Unlimited</strong> Neural Voice</span>
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.6)]" />
+                             <span className="feature-text"><strong>Unlimited</strong> Neural Voice</span>
                          </div>
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300"><strong>Unlimited</strong> 4K Exports</span>
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.6)]" />
+                             <span className="feature-text"><strong>Unlimited</strong> 4K Exports</span>
                          </div>
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300">Beta Access (Video Gen)</span>
-                         </div>
-                         <div className="flex items-start gap-3">
-                             <CheckCircleIcon className="w-5 h-5 pricing-check" />
-                             <span className="text-sm text-gray-300">Priority Support</span>
+                         <div className="feature-item">
+                             <CheckCircleIcon className="feature-icon text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.6)]" />
+                             <span className="feature-text">Beta Access (Video Gen)</span>
                          </div>
                      </div>
                      
                      <button 
                         onClick={triggerLoginLock}
-                        className="w-full py-3 rounded-lg border border-white/20 text-white hover:bg-white/5 transition-colors text-xs font-bold uppercase tracking-widest"
+                        className="crystal-btn"
                      >
                          Ascend Higher
                      </button>
