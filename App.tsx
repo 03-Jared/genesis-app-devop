@@ -913,9 +913,8 @@ const App: React.FC = () => {
                  <h2 className="cinzel-font text-3xl md:text-4xl text-white tracking-widest mb-16 text-center">System Capabilities</h2>
                  
                  <div className="w-full max-w-6xl px-4 overflow-x-auto pb-12 pt-4 flex gap-6 snap-x scrollbar-hide">
-                     {/* ... Features content ... */}
-                     {/* Feature 1: Linguistic Analysis (FIXED: Cyan colors) */}
-                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     {/* Feature 1: Linguistic Analysis (Cyan) */}
+                     <div className="gloss-card gloss-cyan min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
                          <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center border border-cyan-500/30 text-cyan-400">
                              <CpuChipIcon className="w-6 h-6" />
                          </div>
@@ -925,8 +924,8 @@ const App: React.FC = () => {
                          </p>
                      </div>
 
-                     {/* Feature 2: Paleo-Hebrew (FIXED: Violet/Purple colors) */}
-                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     {/* Feature 2: Paleo-Hebrew (Violet) */}
+                     <div className="gloss-card gloss-violet min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
                          <div className="w-12 h-12 rounded-full bg-violet-500/10 flex items-center justify-center border border-violet-500/30 text-violet-400">
                              <LightBulbIcon className="w-6 h-6" />
                          </div>
@@ -936,8 +935,8 @@ const App: React.FC = () => {
                          </p>
                      </div>
 
-                     {/* Feature 3: AI Companion */}
-                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     {/* Feature 3: AI Companion (Purple) */}
+                     <div className="gloss-card gloss-purple min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
                          <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/30 text-purple-400">
                              <ChatBubbleLeftRightIcon className="w-6 h-6" />
                          </div>
@@ -947,8 +946,8 @@ const App: React.FC = () => {
                          </p>
                      </div>
 
-                     {/* Feature 4: Personal Archives */}
-                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     {/* Feature 4: Personal Archives (Emerald) */}
+                     <div className="gloss-card gloss-emerald min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
                          <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30 text-emerald-400">
                              <ShieldCheckIcon className="w-6 h-6" />
                          </div>
@@ -958,8 +957,8 @@ const App: React.FC = () => {
                          </p>
                      </div>
 
-                     {/* Feature 5: Voice Synthesis */}
-                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     {/* Feature 5: Voice Synthesis (Orange) */}
+                     <div className="gloss-card gloss-orange min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
                          <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center border border-orange-500/30 text-orange-400">
                              <SpeakerWaveIcon className="w-6 h-6" />
                          </div>
@@ -969,8 +968,8 @@ const App: React.FC = () => {
                          </p>
                      </div>
 
-                     {/* Feature 6: Export Studio */}
-                     <div className="gloss-card min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
+                     {/* Feature 6: Export Studio (Pink) */}
+                     <div className="gloss-card gloss-pink min-w-[300px] md:min-w-[350px] snap-center flex flex-col gap-4">
                          <div className="w-12 h-12 rounded-full bg-pink-500/10 flex items-center justify-center border border-pink-500/30 text-pink-400">
                              <SwatchIcon className="w-6 h-6" />
                          </div>

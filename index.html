@@ -219,6 +219,7 @@
           box-sizing: border-box;
       }
       
+      /* --- GLOSS CARD & HIGHLIGHT VARIANTS --- */
       .gloss-card {
           background: rgba(255, 255, 255, 0.03);
           backdrop-filter: blur(20px);
@@ -233,7 +234,33 @@
           background: rgba(255, 255, 255, 0.05);
           border-color: rgba(255, 255, 255, 0.2);
           transform: translateY(-5px);
-          box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+          box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      }
+      
+      /* Color Variants for Glow Effect */
+      .gloss-card.gloss-cyan:hover {
+          border-color: #22d3ee;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(34, 211, 238, 0.2);
+      }
+      .gloss-card.gloss-violet:hover {
+          border-color: #a78bfa;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(167, 139, 250, 0.2);
+      }
+      .gloss-card.gloss-purple:hover {
+          border-color: #c084fc;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(192, 132, 252, 0.2);
+      }
+      .gloss-card.gloss-emerald:hover {
+          border-color: #34d399;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(52, 211, 153, 0.2);
+      }
+      .gloss-card.gloss-orange:hover {
+          border-color: #fb923c;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(251, 146, 60, 0.2);
+      }
+      .gloss-card.gloss-pink:hover {
+          border-color: #f472b6;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(244, 114, 182, 0.2);
       }
 
       /* --- ULTRA-PREMIUM NEBULA SECTIONS --- */
