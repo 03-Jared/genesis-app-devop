@@ -42,7 +42,8 @@ import {
   ShieldCheckIcon,
   LightBulbIcon,
   CubeTransparentIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  ArrowUturnLeftIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -112,10 +113,11 @@ const App: React.FC = () => {
   
   // Access Control
   const [isAdmin, setIsAdmin] = useState(false);
-
-  // Login State for Landing Page
+  
+  // Login State
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [isLoginLocked, setIsLoginLocked] = useState(false); // Controls scroll lock on login section
 
   const [scriptureData, setScriptureData] = useState<SefariaResponse | null>(null);
   const [history, setHistory] = useState<WordData[]>([]);
@@ -266,9 +268,20 @@ const App: React.FC = () => {
         localStorage.setItem('genesis_username', 'WABAKI');
         setIsAdmin(true);
         setShowLanding(false);
+        setIsLoginLocked(false);
     } else {
         alert("Authentication Failed. Invalid Credentials.");
     }
+  };
+
+  const unlockLoginScroll = () => {
+      setIsLoginLocked(false);
+      // Optional: Scroll up slightly to show it's unlocked, or stay there.
+  };
+
+  const triggerLoginLock = () => {
+      setIsLoginLocked(true);
+      scrollToSection('login');
   };
 
   const toggleReaderMode = () => {
@@ -540,6 +553,9 @@ const App: React.FC = () => {
   };
 
   const handleContextSelect = (type: 'verse'|'word'|'picto'|'summary') => {
+      // GUEST LOCK: If not admin, do nothing when clicking items
+      if (!isAdmin) return;
+
       setContextMenuOpen(false);
       
       let content = "";
@@ -640,6 +656,13 @@ const App: React.FC = () => {
 
   const handleWordHover = (e: React.MouseEvent, word: string, verseIndex: number) => {
       if (!isHoverEnabled || isTouchDevice() || isMobileSize()) return;
+
+      // GUEST RESTRICTION: Only Genesis Chapter 1, Verses 1-4 allowed for hover
+      if (!isAdmin) {
+          const isGenesis1 = activeRef.book === 'Genesis' && activeRef.chapter === 1;
+          const isFirstFour = verseIndex < 4; // 0, 1, 2, 3 (Verses 1-4)
+          if (!isGenesis1 || !isFirstFour) return;
+      }
 
       setHoveredHebrewWord(word);
       setHoveredVerseIndex(verseIndex);
@@ -743,14 +766,14 @@ const App: React.FC = () => {
 
   if (showLanding) {
     return (
-      <div className="landing-mode">
+      <div className={`landing-mode ${isLoginLocked ? 'overflow-hidden' : ''}`}>
         
         {/* Navigation - Top Right */}
         <nav className="landing-nav">
             <a onClick={() => scrollToSection('about')} className="landing-link cursor-pointer">ABOUT</a>
             <a onClick={() => scrollToSection('features')} className="landing-link cursor-pointer">FEATURES</a>
             <a onClick={() => scrollToSection('contact')} className="landing-link cursor-pointer">CONTACT</a>
-            <button onClick={() => scrollToSection('login')} className="login-btn no-underline">LOGIN</button>
+            <button onClick={triggerLoginLock} className="login-btn no-underline">LOGIN</button>
         </nav>
 
         {/* Particles Container (Fixed to Viewport) */}
@@ -767,31 +790,15 @@ const App: React.FC = () => {
                 <h1 className="landing-title text-5xl md:text-7xl">GENESIS</h1>
                 <p className="landing-subtitle text-[10px] md:text-xs">STUDY SUITE /// V3.0</p>
                 
-                <div className="landing-inputs">
+                <div className="landing-inputs justify-center">
                     <input 
                         type="text" 
                         placeholder="ENTER AGENT NAME" 
                         value={username} 
                         onChange={(e) => setUsername(e.target.value.toUpperCase())} 
-                        className="landing-input" 
+                        className="landing-input text-center max-w-xs" 
                     />
-                    <div className="relative w-full">
-                        <select 
-                            value={settings.theme} 
-                            onChange={(e) => setSettings(s => ({...s, theme: e.target.value as any}))} 
-                            className="landing-input appearance-none cursor-pointer"
-                        >
-                            <option value="" disabled selected>SECURITY PROTOCOL</option>
-                            <option value="rose">MYSTIC ROSE</option>
-                            <option value="cyan">PROTOCOL CYAN</option>
-                            <option value="gold">ROYAL GOLD</option>
-                            <option value="green">MATRIX GREEN</option>
-                            <option value="purple">ROYAL PURPLE</option>
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/50">
-                            <ChevronDownIcon className="w-3 h-3" />
-                        </div>
-                    </div>
+                    {/* Theme Selector Removed as per request */}
                 </div>
 
                 {/* 3D Cross */}
@@ -945,10 +952,16 @@ const App: React.FC = () => {
         </section>
 
         {/* --- SECTION 5: LOGIN --- */}
-        <section id="login" className="landing-section border-t border-white/5">
+        <section id="login" className={`landing-section border-t border-white/5 transition-all duration-700 ${isLoginLocked ? 'filter-none' : 'blur-xl grayscale opacity-50'}`}>
              <div className="max-w-md w-full bg-[#0a0a14] border border-white/10 p-10 rounded-3xl shadow-2xl relative overflow-hidden">
                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--color-accent-secondary)] to-transparent"></div>
                  
+                 {isLoginLocked && (
+                     <button onClick={unlockLoginScroll} className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors" title="Unlock Scrolling">
+                         <XMarkIcon className="w-6 h-6" />
+                     </button>
+                 )}
+
                  <div className="text-center mb-10">
                      <h2 className="cinzel-font text-2xl text-white tracking-widest mb-2">Admin Login</h2>
                      <p className="text-[10px] tech-font uppercase tracking-widest text-white/40">Secure Access Terminal</p>
@@ -987,20 +1000,23 @@ const App: React.FC = () => {
                      </button>
                  </form>
 
-                 <div className="mt-8 text-center">
+                 <div className="mt-8 text-center flex flex-col gap-2">
                      <a href="#" className="text-[9px] tech-font uppercase tracking-widest text-white/30 hover:text-white transition-colors">Recover Access Credentials</a>
+                     {isLoginLocked && <button onClick={unlockLoginScroll} className="text-[9px] tech-font uppercase tracking-widest text-red-400 hover:text-white transition-colors mt-2">Cancel / Unlock</button>}
                  </div>
              </div>
         </section>
         
         {/* Back to Top Button */}
-        <button 
-            onClick={() => scrollToSection('home')}
-            className="fixed bottom-8 left-8 z-50 bg-white/5 border border-white/10 p-3 rounded-full hover:bg-white/10 hover:border-[var(--color-accent-secondary)] transition-all group backdrop-blur-md"
-            title="Return to Top"
-        >
-            <ChevronUpIcon className="w-5 h-5 text-white/50 group-hover:text-[var(--color-accent-secondary)]" />
-        </button>
+        {!isLoginLocked && (
+            <button 
+                onClick={() => scrollToSection('home')}
+                className="fixed bottom-8 left-8 z-50 bg-white/5 border border-white/10 p-3 rounded-full hover:bg-white/10 hover:border-[var(--color-accent-secondary)] transition-all group backdrop-blur-md"
+                title="Return to Top"
+            >
+                <ChevronUpIcon className="w-5 h-5 text-white/50 group-hover:text-[var(--color-accent-secondary)]" />
+            </button>
+        )}
 
         {/* Persistent Footer */}
         <footer className="landing-footer">
@@ -1122,16 +1138,45 @@ const App: React.FC = () => {
                 {contextMenuOpen && (
                     <div className="context-menu">
                         <div className="text-[9px] uppercase tracking-widest text-white/30 px-4 py-2 border-b border-white/5 bg-black/20">Attach Context</div>
-                        <div className="context-menu-item" onClick={() => handleContextSelect('verse')}><BookOpenIcon className="w-4 h-4" /><span>Current Verse</span></div>
-                        <div className={`context-menu-item ${!selectedWord ? 'disabled' : ''}`} onClick={() => selectedWord && handleContextSelect('word')}><LanguageIcon className="w-4 h-4" /><span>Selected Word</span></div>
-                        <div className={`context-menu-item ${!selectedWord ? 'disabled' : ''}`} onClick={() => selectedWord && handleContextSelect('picto')}><SparklesIcon className="w-4 h-4" /><span>Pictographs</span></div>
-                        <div className="context-menu-item" onClick={() => handleContextSelect('summary')}><DocumentTextIcon className="w-4 h-4" /><span>Summary</span></div>
+                        
+                        {/* Menu Items - Visible but Disabled for Guests */}
+                        <div 
+                            className={`context-menu-item ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                            onClick={() => handleContextSelect('verse')}
+                        >
+                            <BookOpenIcon className="w-4 h-4" />
+                            <span>Current Verse { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span>
+                        </div>
+                        
+                        <div 
+                            className={`context-menu-item ${!selectedWord || !isAdmin ? 'disabled' : ''} ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                            onClick={() => selectedWord && handleContextSelect('word')}
+                        >
+                            <LanguageIcon className="w-4 h-4" />
+                            <span>Selected Word { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span>
+                        </div>
+                        
+                        <div 
+                            className={`context-menu-item ${!selectedWord || !isAdmin ? 'disabled' : ''} ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                            onClick={() => selectedWord && handleContextSelect('picto')}
+                        >
+                            <SparklesIcon className="w-4 h-4" />
+                            <span>Pictographs { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span>
+                        </div>
+                        
+                        <div 
+                            className={`context-menu-item ${!isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                            onClick={() => handleContextSelect('summary')}
+                        >
+                            <DocumentTextIcon className="w-4 h-4" />
+                            <span>Summary { !isAdmin && <LockClosedIcon className="w-3 h-3 inline ml-2" />}</span>
+                        </div>
                     </div>
                 )}
+                {/* Plus Button - Always Clickable now */}
                 <button 
                     onClick={() => setContextMenuOpen(!contextMenuOpen)} 
                     className={`chat-context-btn ${contextMenuOpen ? 'bg-white/10 text-white border-white' : ''}`}
-                    disabled={!isAdmin} // Disabled for guests
                 >
                     <PlusIcon className="w-5 h-5" />
                 </button>
@@ -1320,13 +1365,13 @@ const App: React.FC = () => {
             </div>
             
             <div className="flex-grow overflow-y-auto px-6 py-8 md:p-10 pb-32 md:pb-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
                   {/* PRISM CORE SECTION */}
                   <div className="flex flex-col gap-6">
-                      <div className="glass-panel p-8 rounded-3xl relative bg-white/5">
+                      <div className="glass-panel p-8 rounded-3xl relative bg-white/5 h-full">
                         <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-accent-secondary)]"></div>
                         <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6"><SwatchIcon className="w-4 h-4" /> Prism Core</h3>
-                        <div className="max-h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="overflow-y-auto pr-2 custom-scrollbar">
                             <div className="grid grid-cols-2 gap-4">
                                 {THEME_ORDER.map((key) => {
                                   const theme = THEMES[key as keyof typeof THEMES];
@@ -1351,7 +1396,7 @@ const App: React.FC = () => {
                   </div>
                   
                   {/* ADVANCED SETTINGS (LOCKED FOR GUESTS VISUALLY) */}
-                  <div className="flex flex-col gap-6 relative">
+                  <div className="flex flex-col gap-6 relative h-full">
                       {/* Visual Lock Overlay for Guests */}
                       {!isAdmin && (
                           <div className="absolute inset-0 z-50 bg-gray-900/10 backdrop-blur-[1px] rounded-3xl border border-white/5 flex items-center justify-center pointer-events-none">
@@ -1360,7 +1405,7 @@ const App: React.FC = () => {
                       )}
 
                       {/* --- Voice Synthesis Settings --- */}
-                      <div className={`glass-panel p-8 rounded-3xl relative bg-white/5 ${!isAdmin ? 'opacity-50' : ''}`}>
+                      <div className={`glass-panel p-8 rounded-3xl relative bg-white/5 flex-1 flex flex-col ${!isAdmin ? 'opacity-50' : ''}`}>
                           <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6"><SpeakerWaveIcon className="w-4 h-4" /> Voice Synthesis</h3>
                           <div className="flex flex-col gap-4">
                               <div className="flex items-center justify-between">
@@ -1393,7 +1438,7 @@ const App: React.FC = () => {
                       </div>
 
                       {/* --- System Performance --- */}
-                      <div className={`glass-panel p-8 rounded-3xl relative bg-white/5 ${!isAdmin ? 'opacity-50' : ''}`}>
+                      <div className={`glass-panel p-8 rounded-3xl relative bg-white/5 flex-1 flex flex-col ${!isAdmin ? 'opacity-50' : ''}`}>
                           <h3 className="flex items-center gap-2 text-[var(--color-accent-secondary)] font-bold uppercase tracking-widest text-xs mb-6"><CpuChipIcon className="w-4 h-4" /> System Core</h3>
                           <div className="flex flex-col gap-4">
                               <div className="flex items-center justify-between">
