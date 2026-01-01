@@ -780,6 +780,51 @@
       .ai-gen-btn { background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary)); color: white; border: none; padding: 10px; border-radius: 8px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: filter 0.2s; display: flex; items-center; justify-content: center; gap: 6px; }
       .ai-gen-btn:hover { filter: brightness(1.2); }
       .ai-gen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      
+      /* --- CLASSIC / BORING THEME OVERRIDES --- */
+      body.theme-classic .cosmic-bg {
+        background-image: none !important;
+        background-color: #050505 !important;
+        animation: none !important;
+      }
+      body.theme-classic .glass-panel,
+      body.theme-classic .glass-pill, 
+      body.theme-classic .verse-block,
+      body.theme-classic .decoder-card,
+      body.theme-classic .chat-window-container,
+      body.theme-classic .gloss-card {
+        background: #111111 !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        box-shadow: none !important;
+        border: 1px solid #333 !important;
+      }
+      body.theme-classic .cyan-glow,
+      body.theme-classic .text-shadow {
+        text-shadow: none !important;
+      }
+      body.theme-classic .electric-gradient, 
+      body.theme-classic .reactor-button {
+        background: #222 !important;
+        border: 1px solid #444 !important;
+        box-shadow: none !important;
+      }
+      body.theme-classic .electric-gradient:hover,
+      body.theme-classic .reactor-button:hover {
+        background: #333 !important;
+        transform: none !important;
+        border-color: #666 !important;
+      }
+      body.theme-classic .hebrew-text span:hover {
+        transform: none !important;
+        text-shadow: none !important;
+        background-color: #222;
+      }
+      /* Ensure text visibility in boring mode */
+      body.theme-classic {
+        --text-body: #cccccc;
+      }
+
       @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
   <script type="importmap">

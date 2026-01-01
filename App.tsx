@@ -46,7 +46,10 @@ import {
   LockClosedIcon,
   ArrowUturnLeftIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  UserIcon,
+  KeyIcon,
+  FingerPrintIcon
 } from '@heroicons/react/24/outline';
 
 type PanelId = 'nav' | 'reader' | 'decoder';
@@ -56,11 +59,13 @@ const THEMES = {
   gold: { primary: '#5b3a00', secondary: '#FFD700', name: 'Royal Gold' },
   green: { primary: '#064e3b', secondary: '#00ff00', name: 'Matrix Green' },
   purple: { primary: '#4c1d95', secondary: '#d946ef', name: 'Royal Purple' },
-  rose: { primary: '#be185d', secondary: '#ffe4e6', name: 'Mystic Rose' }
+  rose: { primary: '#be185d', secondary: '#ffe4e6', name: 'Mystic Rose' },
+  noir: { primary: '#222222', secondary: '#ffffff', name: 'Mono Chrome' },
+  classic: { primary: '#4a5568', secondary: '#cbd5e0', name: 'Simple Read' }
 };
 
-// Explicit order for settings menu: Cyan, Purple, Rose (Free) | Green, Gold (Locked)
-const THEME_ORDER = ['cyan', 'purple', 'rose', 'green', 'gold'];
+// Explicit order for settings menu: Cyan, Purple, Rose (Free) | Green, Gold (Locked) | Noir, Classic
+const THEME_ORDER = ['cyan', 'purple', 'rose', 'green', 'gold', 'noir', 'classic'];
 
 window.VERSE_DATA = {};
 window.IS_SCANNING = false;
@@ -100,6 +105,12 @@ function parseMarkdown(text: string) {
 }
 
 const App: React.FC = () => {
+  // --- SECURITY GATE STATE ---
+  const [isGateOpen, setIsGateOpen] = useState(false);
+  const [gateUser, setGateUser] = useState('');
+  const [gatePass, setGatePass] = useState('');
+  const [gateError, setGateError] = useState('');
+
   const [selectedBook, setSelectedBook] = useState('Genesis');
   const [selectedChapter, setSelectedChapter] = useState(1);
   const [selectedVerse, setSelectedVerse] = useState('');
@@ -117,7 +128,7 @@ const App: React.FC = () => {
   // Access Control
   const [isAdmin, setIsAdmin] = useState(false);
   
-  // Login State
+  // Login State (App Internal Admin)
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   
@@ -183,7 +194,14 @@ const App: React.FC = () => {
     return window.innerWidth < 768;
   }
 
+  // --- INITIALIZATION ---
   useEffect(() => {
+    // 1. Check Security Gate Session
+    const isUnlocked = sessionStorage.getItem('genesis_gate_unlocked');
+    if (isUnlocked === 'true') {
+        setIsGateOpen(true);
+    }
+
     const storedUser = localStorage.getItem('genesis_username');
     const storedTheme = localStorage.getItem('genesis_theme');
     const storedReaderMode = localStorage.getItem('genesis_reader_mode');
@@ -218,10 +236,21 @@ const App: React.FC = () => {
   useEffect(() => {
     const root = document.documentElement;
     const theme = THEMES[settings.theme];
+    
+    // Apply colors
     root.style.setProperty('--color-accent-primary', theme.primary);
     root.style.setProperty('--color-accent-secondary', theme.secondary);
-    root.style.setProperty('--glass-bg', `rgba(10, 14, 41, ${settings.glassOpacity / 100})`);
-    root.style.setProperty('--glow-factor', (settings.glowFactor / 100).toString());
+    
+    // Theme Mode Logic (Classic vs Modern)
+    if (settings.theme === 'classic') {
+       document.body.classList.add('theme-classic');
+       root.style.setProperty('--glass-bg', '#121212'); // Solid dark bg for classic
+       root.style.setProperty('--glow-factor', '0');
+    } else {
+       document.body.classList.remove('theme-classic');
+       root.style.setProperty('--glass-bg', `rgba(10, 14, 41, ${settings.glassOpacity / 100})`);
+       root.style.setProperty('--glow-factor', (settings.glowFactor / 100).toString());
+    }
   }, [settings]);
   
   useEffect(() => {
@@ -259,6 +288,19 @@ const App: React.FC = () => {
         }]);
     }
   }, [isChatOpen, username]);
+
+  const handleGateUnlock = (e: React.FormEvent) => {
+      e.preventDefault();
+      // Credential Check
+      if (gateUser === 'Damicah' && gatePass === 'Wabak!O3') {
+          setIsGateOpen(true);
+          sessionStorage.setItem('genesis_gate_unlocked', 'true');
+          setGateError('');
+      } else {
+          setGateError('SECURITY ALERT: Invalid Credentials');
+          setGatePass('');
+      }
+  };
 
   const handleInitialize = () => {
     if (!username.trim()) return;
@@ -814,6 +856,77 @@ const App: React.FC = () => {
   // Show Next if: Chapter < Max OR (Chapter == Max AND Not Malachi)
   const showNextButton = selectedChapter < maxChapters || (selectedChapter === maxChapters && nextBookName);
 
+  // --- SECURITY GATE RENDER ---
+  if (!isGateOpen) {
+      return (
+          <div className="h-[100dvh] w-full cosmic-bg flex flex-col items-center justify-center relative p-6">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-0"></div>
+              
+              <div className="relative z-10 w-full max-w-sm bg-[#0a0a14] border border-white/10 rounded-2xl shadow-2xl p-8 animate-fadeIn flex flex-col gap-6">
+                  {/* Header */}
+                  <div className="text-center border-b border-white/5 pb-6">
+                      <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                          <LockClosedIcon className="w-8 h-8 text-red-500" />
+                      </div>
+                      <h2 className="cinzel-font text-2xl text-white tracking-widest mb-1">SYSTEM LOCKED</h2>
+                      <p className="text-[10px] tech-font uppercase tracking-[0.2em] text-white/40">Secure Access Terminal</p>
+                  </div>
+
+                  {/* Form */}
+                  <form onSubmit={handleGateUnlock} className="flex flex-col gap-4">
+                      <div className="space-y-1">
+                          <label className="text-[9px] uppercase tracking-widest text-[var(--color-accent-secondary)] font-bold ml-1">Identity</label>
+                          <div className="relative">
+                              <UserIcon className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
+                              <input 
+                                  type="text" 
+                                  value={gateUser}
+                                  onChange={(e) => setGateUser(e.target.value)}
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 pl-10 text-sm text-white focus:border-[var(--color-accent-secondary)] outline-none transition-all placeholder:text-white/20"
+                                  placeholder="ENTER ID"
+                                  autoFocus
+                              />
+                          </div>
+                      </div>
+
+                      <div className="space-y-1">
+                          <label className="text-[9px] uppercase tracking-widest text-[var(--color-accent-secondary)] font-bold ml-1">Passkey</label>
+                          <div className="relative">
+                              <KeyIcon className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
+                              <input 
+                                  type="password" 
+                                  value={gatePass}
+                                  onChange={(e) => setGatePass(e.target.value)}
+                                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 pl-10 text-sm text-white focus:border-[var(--color-accent-secondary)] outline-none transition-all placeholder:text-white/20"
+                                  placeholder="ENTER KEY"
+                              />
+                          </div>
+                      </div>
+
+                      {gateError && (
+                          <div className="text-center text-[10px] text-red-400 uppercase tracking-wider animate-pulse bg-red-500/10 py-2 rounded">
+                              {gateError}
+                          </div>
+                      )}
+
+                      <button 
+                          type="submit" 
+                          className="mt-2 w-full electric-gradient py-4 rounded-lg text-xs font-bold tracking-[0.2em] uppercase text-white hover:brightness-110 transition-all flex items-center justify-center gap-2 group"
+                      >
+                          <FingerPrintIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                          Authenticate
+                      </button>
+                  </form>
+                  
+                  <div className="text-center">
+                      <p className="text-[9px] text-white/20 tech-font">Genesis Suite v3.0 // Encrypted Connection</p>
+                  </div>
+              </div>
+          </div>
+      );
+  }
+
+  // --- APP RENDER (Landing or Main) ---
   if (showLanding) {
     return (
       <div className={`landing-mode`}>
@@ -1300,7 +1413,9 @@ const App: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <header className="hidden md:flex justify-between items-center py-2 px-4 border-b border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 rounded-2xl mb-2 backdrop-blur-sm"><h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}</h1><div className="flex items-center gap-4">{Object.values(scanStatuses).some(s => s === 'scanning') && (<div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]"><span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>Gemini Uplink Active</div>)}<div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">System Online</div></div></header>
+      <header className="hidden md:flex justify-between items-center py-2 px-4 border-b border-[var(--color-accent-primary)]/20 bg-[var(--color-accent-primary)]/5 rounded-2xl mb-2 backdrop-blur-sm"><h1 className="cinzel-font text-xl text-white font-bold tracking-widest cyan-glow">GENESIS <span className="text-[var(--color-accent-secondary)] mx-2">//</span> {username}</h1>
+      <div className="flex items-center gap-4">
+        {Object.values(scanStatuses).some(s => s === 'scanning') && (<div className="flex items-center gap-2 text-[10px] tech-font uppercase tracking-widest text-[var(--color-accent-secondary)]"><span className="w-2 h-2 bg-[var(--color-accent-secondary)] rounded-full animate-ping"></span>Gemini Uplink Active</div>)}<div className="text-[10px] tech-font uppercase tracking-widest text-[#a0a8c0]/60">System Online</div></div></header>
 
       <div className="flex-grow grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 relative max-w-[1920px] mx-auto w-full h-full">
         <section className={getPanelClass('nav')}><div className="panel-header"><h2 className="cinzel-font text-[var(--color-accent-secondary)] tracking-widest text-xs font-bold flex items-center gap-2"><Bars3Icon className="w-4 h-4" /> Codex</h2><div className="window-controls"><button onClick={() => setIsSettingsOpen(true)} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors"><Cog6ToothIcon className="w-4 h-4" /></button><button onClick={() => toggleMaximize('nav')} className="text-[#a0a8c0] hover:text-[var(--color-accent-secondary)] transition-colors">{maximizedPanel === 'nav' ? <ArrowsPointingInIcon className="w-4 h-4" /> : <ArrowsPointingOutIcon className="w-4 h-4" />}</button></div></div>
